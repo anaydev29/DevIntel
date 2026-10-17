@@ -6,6 +6,7 @@
 """
 import argparse
 
+from app.analysis import compute_scores
 from app.collectors.github import GitHubCollector
 from app.collectors.hackernews import HackerNewsCollector
 from app.collectors.stackoverflow import StackOverflowCollector
@@ -31,3 +32,4 @@ if __name__ == "__main__":
             print(f"[{name}] status={run.status} records={run.records_fetched} errors={run.error_count}")
             if run.error_log:
                 print(run.error_log)
+        print(f"[analysis] {compute_scores(db)}")

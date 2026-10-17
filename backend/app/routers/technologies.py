@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import MetricSnapshot, Source, Technology
+from app.models import MetricSnapshot, Source, TechScore, Technology
 from app.normalize import resolve_technology
 from app.schemas import MetricPoint, TechnologyDetail, TechnologyOut
 
@@ -37,9 +37,14 @@ def get_technology(name: str, db: Session = Depends(get_db)):
         rows = db.execute(select(MetricSnapshot.metric, MetricSnapshot.value).where(
             MetricSnapshot.technology_id == tech.id, MetricSnapshot.captured_on == latest_day))
         latest = {m: v for m, v in rows}
+    score = db.scalar(select(TechScore).where(TechScore.technology_id == tech.id)
+                      .order_by(TechScore.computed_on.desc()).limit(1))
     return TechnologyDetail(slug=tech.slug, name=tech.name, category=tech.category,
                             description=tech.description,
-                            aliases=sorted(a.alias for a in tech.aliases), latest_metrics=latest)
+                            aliases=sorted(a.alias for a in tech.aliases), latest_metrics=latest,
+                            devintel_score=score.devintel_score if score else None,
+                            growth_30d=score.growth_30d if score else None,
+                            is_emerging=score.is_emerging if score else False)
 
 
 @router.get("/{name}/metrics", response_model=list[MetricPoint])

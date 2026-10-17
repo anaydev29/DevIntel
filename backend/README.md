@@ -19,14 +19,15 @@ pytest                                                 # run tests
 app/models.py            database schema (technologies, aliases, metric_snapshots, repositories, pipeline_runs, tech_scores)
 app/seed.py              technology catalog + aliases
 app/normalize.py         alias -> canonical technology
-app/collectors/          base pipeline logic + GitHub collector (add stackoverflow.py, hackernews.py here)
+app/collectors/          base pipeline logic + GitHub, Stack Overflow, Hacker News collectors
+app/analysis.py          DevIntel Score, 30-day growth, emerging flag (formulas documented at top of file)
 app/routers/             API endpoints
 run_pipeline.py          CLI entry point for collection jobs
 tests/                   pytest suite (runs on in-memory SQLite)
 ```
 
 ## Endpoints
-`GET /health` · `/technologies?q=&category=` · `/technologies/{name}` · `/technologies/{name}/metrics?metric=&days=` · `/categories` · `/pipeline/runs`
+`GET /health` · `/technologies?q=&category=` · `/technologies/{name}` · `/technologies/{name}/metrics?metric=&days=` · `/rankings/trending` · `/rankings/emerging` · `/categories` · `/pipeline/runs`
 
 ## Next
-1. Stack Overflow collector  2. Hacker News collector  3. Analysis module (growth, DevIntel Score, emerging flag -> `tech_scores`)  4. Alembic migrations  5. GitHub Actions schedule
+1. Backtest the emerging flag once 30+ days of history exist  2. Frontend dashboard  3. Skill-gap analyzer  4. Alembic migrations

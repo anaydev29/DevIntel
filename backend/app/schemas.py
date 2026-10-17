@@ -14,6 +14,19 @@ class TechnologyOut(BaseModel):
 class TechnologyDetail(TechnologyOut):
     aliases: list[str]
     latest_metrics: dict[str, float]
+    devintel_score: float | None = None
+    growth_30d: float | None = None
+    is_emerging: bool = False
+
+
+class RankingItem(BaseModel):
+    slug: str
+    name: str
+    category: str
+    devintel_score: float | None
+    growth_30d: float | None
+    is_emerging: bool
+    computed_on: date
 
 
 class MetricPoint(BaseModel):
