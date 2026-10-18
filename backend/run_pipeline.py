@@ -8,13 +8,17 @@ import argparse
 
 from app.analysis import compute_scores
 from app.collectors.github import GitHubCollector
+from app.collectors.devto import DevToCollector
 from app.collectors.hackernews import HackerNewsCollector
+from app.collectors.hn_frontpage import HackerNewsFrontPageCollector
 from app.collectors.stackoverflow import StackOverflowCollector
+from app.collectors.trending_repos import TrendingReposCollector
 from app.database import Base, SessionLocal, engine
 from app.seed import seed
 
 COLLECTORS = {"github": GitHubCollector, "stackoverflow": StackOverflowCollector,
-              "hackernews": HackerNewsCollector}
+              "hackernews": HackerNewsCollector, "devto": DevToCollector,
+              "hn_frontpage": HackerNewsFrontPageCollector, "github_trending": TrendingReposCollector}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

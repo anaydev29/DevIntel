@@ -44,3 +44,29 @@ class PipelineRunOut(BaseModel):
     status: str
     records_fetched: int
     error_count: int
+
+
+class ArticleOut(BaseModel):
+    id: int
+    source: str
+    title: str
+    url: str
+    discussion_url: str | None = None
+    author: str | None
+    tags: list[str]
+    published_at: datetime | None
+    score: int
+    comments: int
+    reading_time: int | None
+    technology: str | None = None
+
+
+class RepoOut(BaseModel):
+    rank: int
+    full_name: str
+    url: str
+    description: str | None
+    language: str | None
+    stars: int
+    forks: int
+    created_at: datetime | None

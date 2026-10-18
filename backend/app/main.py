@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
-from app.routers import meta, rankings, technologies
+from app.routers import feed, meta, rankings, technologies
 
 
 @asynccontextmanager
@@ -19,6 +19,7 @@ app = FastAPI(title="DevIntel API", version="0.1.0",
 app.include_router(meta.router)
 app.include_router(technologies.router)
 app.include_router(rankings.router)
+app.include_router(feed.router)
 
 # Production frontend (React build) served from the same origin as the API, so no CORS setup is needed.
 # During development run `npm run dev` in /frontend instead (it proxies API calls here).

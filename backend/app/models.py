@@ -112,3 +112,40 @@ class TechScore(Base):
     devintel_score: Mapped[float | None] = mapped_column(Float)
     growth_30d: Mapped[float | None] = mapped_column(Float)
     is_emerging: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class Article(Base):
+    """Blog posts (dev.to) and news stories (Hacker News front page)."""
+    __tablename__ = "articles"
+    __table_args__ = (UniqueConstraint("source", "external_id", name="uq_article_source_ext"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), index=True)  # devto / hackernews
+    external_id: Mapped[str] = mapped_column(String(40))
+    title: Mapped[str] = mapped_column(String(400))
+    url: Mapped[str] = mapped_column(String(800))
+    author: Mapped[str | None] = mapped_column(String(120))
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    score: Mapped[int] = mapped_column(Integer, default=0)      # dev.to reactions / HN points
+    comments: Mapped[int] = mapped_column(Integer, default=0)
+    reading_time: Mapped[int | None] = mapped_column(Integer)
+    technology_id: Mapped[int | None] = mapped_column(ForeignKey("technologies.id", ondelete="SET NULL"))
+    fetched_on: Mapped[date] = mapped_column(Date)              # last day we saw it (HN: on the front page)
+
+
+class TrendingRepo(Base):
+    """Daily snapshot of hot new GitHub repositories (GitHub has no official trending API)."""
+    __tablename__ = "trending_repos"
+    __table_args__ = (UniqueConstraint("captured_on", "github_id", name="uq_trending_per_day"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    captured_on: Mapped[date] = mapped_column(Date, index=True)
+    rank: Mapped[int] = mapped_column(Integer)
+    github_id: Mapped[int] = mapped_column(Integer)
+    full_name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text)
+    language: Mapped[str | None] = mapped_column(String(60))
+    stars: Mapped[int] = mapped_column(Integer, default=0)
+    forks: Mapped[int] = mapped_column(Integer, default=0)
+    created_at_gh: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
