@@ -5,9 +5,11 @@ import RankingCard from './components/RankingCard'
 import EmergingCard from './components/EmergingCard'
 import DetailDialog from './components/DetailDialog'
 import { BlogsPage, NewsPage, ReposPage } from './components/Feeds'
+import ComparePage from './components/ComparePage'
 
 const TABS = [
   ['rankings', 'Rankings'],
+  ['compare', 'Compare'],
   ['blogs', 'Blogs'],
   ['news', 'News'],
   ['repos', 'Trending repos'],
@@ -57,6 +59,7 @@ export default function App() {
             <EmergingCard rows={data.emerging} onSelect={setSelected} />
           </div>
         )}
+        {tab === 'compare' && <ComparePage technologies={data?.items ?? []} />}
         {tab === 'blogs' && <BlogsPage technologies={data?.items ?? []} />}
         {tab === 'news' && <NewsPage />}
         {tab === 'repos' && <ReposPage />}

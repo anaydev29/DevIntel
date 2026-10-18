@@ -70,3 +70,23 @@ class RepoOut(BaseModel):
     stars: int
     forks: int
     created_at: datetime | None
+
+
+class ScorePoint(BaseModel):
+    date: date
+    score: float
+
+
+class CompareTech(BaseModel):
+    slug: str
+    name: str
+    category: str
+    devintel_score: float | None
+    growth_30d: float | None
+    is_emerging: bool
+    metrics: dict[str, float]
+    history: list[ScorePoint]
+
+
+class CompareOut(BaseModel):
+    technologies: list[CompareTech]

@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // In development the React app runs on :5173 and forwards API calls to FastAPI on :8000.
 const API = 'http://127.0.0.1:8000'
-const prefixes = ['/rankings', '/technologies', '/categories', '/pipeline', '/health', '/feed']
+const prefixes = ['/rankings', '/technologies', '/categories', '/pipeline', '/health', '/feed', '/compare']
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
