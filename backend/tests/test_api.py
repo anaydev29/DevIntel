@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.collectors.base import get_or_create_source, save_metric
 from app.database import Base, get_db
-from app.main import app
+from app.main import STATIC_DIR, app
 from app.models import MetricSnapshot, Technology
 from app.normalize import resolve_technology
 from app.seed import seed
@@ -72,4 +72,12 @@ def test_detail_by_alias_and_metrics(client, db):
     assert detail["latest_metrics"]["github.top_stars"] == 500000
     pts = client.get("/technologies/react/metrics", params={"metric": "github.top_stars"}).json()
     assert pts[0]["captured_on"] == date.today().isoformat()
+    assert client.get("/technologies/nope").status_code == 404
+
+
+@pytest.mark.skipif(not (STATIC_DIR / "index.html").exists(), reason="frontend not built (npm run build)")
+def test_frontend_is_served_and_api_still_wins(client):
+    page = client.get("/")
+    assert page.status_code == 200 and "root" in page.text
+    assert client.get("/health").json() == {"status": "ok"}
     assert client.get("/technologies/nope").status_code == 404

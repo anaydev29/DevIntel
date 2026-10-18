@@ -1,6 +1,8 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.database import Base, engine
 from app.routers import meta, rankings, technologies
@@ -17,3 +19,10 @@ app = FastAPI(title="DevIntel API", version="0.1.0",
 app.include_router(meta.router)
 app.include_router(technologies.router)
 app.include_router(rankings.router)
+
+# Production frontend (React build) served from the same origin as the API, so no CORS setup is needed.
+# During development run `npm run dev` in /frontend instead (it proxies API calls here).
+# Mounted last so API routes (/technologies, /rankings, /docs ...) always win.
+STATIC_DIR = Path(__file__).resolve().parents[2] / "frontend" / "dist"  # created by `npm run build`
+if STATIC_DIR.exists():
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="frontend")
