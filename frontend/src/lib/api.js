@@ -15,3 +15,7 @@ export async function loadDashboard() {
 }
 
 export const loadTechnology = (slug) => get(`/technologies/${encodeURIComponent(slug)}`)
+
+export const loadBlogs = (tech) => get(`/feed/blogs?limit=40${tech ? `&tech=${encodeURIComponent(tech)}` : ''}`)
+export const loadNews = () => get('/feed/news?limit=30')
+export const loadRepos = () => get('/feed/repos?limit=100')

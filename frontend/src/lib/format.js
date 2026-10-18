@@ -26,5 +26,6 @@ export function timeAgo(iso) {
   if (minutes < 1) return 'just now'
   if (minutes < 60) return `${minutes} min ago`
   if (minutes < 1440) return `${Math.round(minutes / 60)} h ago`
-  return `${Math.round(minutes / 1440)} days ago`
+  const days = Math.round(minutes / 1440)
+  return `${days} ${days === 1 ? 'day' : 'days'} ago`
 }
