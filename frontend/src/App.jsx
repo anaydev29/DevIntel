@@ -6,10 +6,12 @@ import EmergingCard from './components/EmergingCard'
 import DetailDialog from './components/DetailDialog'
 import { BlogsPage, NewsPage, ReposPage } from './components/Feeds'
 import ComparePage from './components/ComparePage'
+import SkillGapPage from './components/SkillGapPage'
 
 const TABS = [
   ['rankings', 'Rankings'],
   ['compare', 'Compare'],
+  ['skills', 'Skill gap'],
   ['blogs', 'Blogs'],
   ['news', 'News'],
   ['repos', 'Trending repos'],
@@ -60,6 +62,7 @@ export default function App() {
           </div>
         )}
         {tab === 'compare' && <ComparePage technologies={data?.items ?? []} />}
+        {tab === 'skills' && <SkillGapPage technologies={data?.items ?? []} />}
         {tab === 'blogs' && <BlogsPage technologies={data?.items ?? []} />}
         {tab === 'news' && <NewsPage />}
         {tab === 'repos' && <ReposPage />}

@@ -21,3 +21,14 @@ export const loadNews = () => get('/feed/news?limit=30')
 export const loadRepos = () => get('/feed/repos?limit=100')
 
 export const loadCompare = (a, b) => get(`/compare?techs=${encodeURIComponent(a)},${encodeURIComponent(b)}`)
+
+export async function analyzeSkills(payload) {
+  const res = await fetch('/skills/gap', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'Something went wrong. Please try again.')
+  return data
+}

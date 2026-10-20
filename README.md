@@ -18,6 +18,7 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 | Tab | What it does |
 |---|---|
 | **Rankings** | 32 technologies ranked by DevIntel Score (0 to 100), with search, category filters, 30-day growth and a "Taking off" panel for fast-growing technologies. Select a row for all the numbers behind it. |
+| **Skill gap** | Pick the technologies you know and/or enter a GitHub username. DevIntel reads your public repositories (main language and topics), then ranks what to learn next by demand, momentum and how well each technology fits your stack, with starter articles. |
 | **Compare** | Pick two technologies (for example FastAPI vs Django) and see a side-by-side summary, every signal with the leader highlighted, and a score-over-time chart. |
 | **Blogs** | The most popular dev.to articles of the last two weeks, filterable by technology. |
 | **News** | The current Hacker News front page. |
@@ -96,11 +97,11 @@ GitHub Actions (daily)          Supabase PostgreSQL          Browser
 backend/
   app/
     models.py  database.py  config.py  schemas.py  main.py
-    seed.py  normalize.py  analysis.py
+    seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
     collectors/   base, github, stackoverflow, hackernews, devto, hn_frontpage, trending_repos
-    routers/      meta, technologies, rankings, feed, compare
+    routers/      meta, technologies, rankings, feed, compare, skills
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (25 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (30 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -171,6 +172,7 @@ pytest -q
 | `GET /technologies/{name}` | One technology with latest metrics, score and growth (aliases accepted) |
 | `GET /technologies/{name}/metrics` | Metric history for charts (`metric`, `days`) |
 | `GET /compare?techs=fastapi,django` | Side-by-side data for 2 or 3 technologies |
+| `POST /skills/gap` | Skill-gap analysis from `skills` and/or `github_username` (optional `category`) |
 | `GET /feed/blogs` | Popular dev.to articles (`tech`, `days`, `limit`) |
 | `GET /feed/news` | Hacker News front page |
 | `GET /feed/repos` | Trending new repositories (`language`) |
@@ -190,6 +192,7 @@ Setup notes:
 
 - **Growth needs history.** Growth and the "Taking off" flag only appear after about 7 days of daily collection, and the thresholds can only be tuned properly after about 30 days.
 - **GitHub has no official trending API.** "Trending repos" are the most-starred repositories created in the last 7 days, which is an approximation of GitHub's own page.
+- **Skill detection is shallow.** GitHub detection uses each repository's main language and topics only, so it misses libraries that are not listed as topics. Picking skills by hand fills the gap.
 - **Name ambiguity.** Words like "Go" and "Swift" are ambiguous in Hacker News titles. Overrides reduce the noise, but some remains.
 - **Bias.** Hacker News skews toward startups and the US, and Stack Overflow question counts favor older technologies. That is why growth is shown next to size everywhere.
 - **API limits.** Each source has rate limits, and one failing technology never stops a run. Failures are recorded in `pipeline_runs`.
@@ -199,7 +202,7 @@ Setup notes:
 - [x] Data pipeline with four sources, daily automation and a data-freshness log
 - [x] DevIntel Score, 30-day growth and the emerging flag
 - [x] Dashboard: rankings, compare, blogs, news, trending repos
-- [ ] Skill-gap analyzer (enter skills or a GitHub username, see what is missing)
+- [x] Skill-gap analyzer (pick skills or enter a GitHub username, see what to learn next)
 - [ ] Syllabus gap analyzer (map a course syllabus to current technologies)
 - [ ] Hiring-demand signal from the monthly "Who is hiring?" threads
 - [ ] Technology detail pages with related technologies and learning resources

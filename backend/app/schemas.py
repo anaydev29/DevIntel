@@ -90,3 +90,56 @@ class CompareTech(BaseModel):
 
 class CompareOut(BaseModel):
     technologies: list[CompareTech]
+
+
+class SkillGapRequest(BaseModel):
+    skills: list[str] = []
+    github_username: str | None = None
+    category: str | None = None
+
+
+class KnownSkill(BaseModel):
+    slug: str
+    name: str
+    category: str
+    devintel_score: float | None
+    growth_30d: float | None
+    source: str            # manual / github / both
+    repos: int | None = None
+
+
+class StarterArticle(BaseModel):
+    title: str
+    url: str
+
+
+class Recommendation(BaseModel):
+    slug: str
+    name: str
+    category: str
+    priority: float        # 0-100
+    devintel_score: float | None
+    growth_30d: float | None
+    is_emerging: bool
+    reasons: list[str]
+    related_to: list[str]
+    starters: list[StarterArticle]
+
+
+class GithubSummary(BaseModel):
+    username: str
+    repos_scanned: int
+
+
+class Coverage(BaseModel):
+    known_in_top10: int
+    top10: list[str]
+
+
+class SkillGapOut(BaseModel):
+    known: list[KnownSkill]
+    unrecognized: list[str]
+    github: GithubSummary | None = None
+    coverage: Coverage
+    recommendations: list[Recommendation]
+    note: str | None = None
