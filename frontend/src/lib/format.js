@@ -8,7 +8,13 @@ export const METRIC_LABELS = {
   'stackoverflow.questions_30d': 'Stack Overflow questions, last 30 days',
   'hackernews.stories_30d': 'Hacker News stories, last 30 days',
   'hackernews.points_30d': 'Hacker News points, last 30 days',
+  'hiring.mentions': 'Job posts mentioning it (latest HN hiring thread)',
+  'hiring.share_pct': 'Share of HN job posts mentioning it',
 }
+
+// Percent metrics end in _pct; everything else is a count
+export const formatMetric = (key, value) =>
+  key.endsWith('_pct') ? `${value.toFixed(1)}%` : compact.format(value)
 
 const CATEGORY_NAMES = { 'ai-ml': 'AI and ML', devops: 'DevOps' }
 export const categoryName = (c) => CATEGORY_NAMES[c] ?? c.charAt(0).toUpperCase() + c.slice(1)

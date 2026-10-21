@@ -1,6 +1,6 @@
 """Analysis step: turns raw metric snapshots into the DevIntel Score and the emerging flag.
 
-DEVINTEL SCORE (0-100), computed from the latest snapshot of each signal
+DEVINTEL SCORE (0-100), computed from the latest snapshot of each signal (incl. job-post demand)
   1. For every signal, each technology gets a percentile rank among all technologies
      (0 = lowest, 1 = highest). Ranks are robust to huge outliers (Python vs Bun).
   2. Score = weighted average of the technology's ranks x 100.
@@ -28,12 +28,13 @@ from sqlalchemy.orm import Session
 from app.models import MetricSnapshot, TechScore
 
 SCORE_WEIGHTS = {
-    "stackoverflow.questions_30d": 0.30,
-    "github.repo_count": 0.20,
+    "stackoverflow.questions_30d": 0.25,
+    "hiring.share_pct": 0.20,
+    "github.repo_count": 0.15,
     "github.top_stars": 0.15,
-    "hackernews.stories_30d": 0.15,
+    "hackernews.stories_30d": 0.10,
     "stackoverflow.total_questions": 0.10,
-    "hackernews.points_30d": 0.10,
+    "hackernews.points_30d": 0.05,
 }
 GROWTH_WEIGHTS = {
     "github.repo_count": 0.4,

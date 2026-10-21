@@ -8,12 +8,12 @@ PRIORITY (0-100) for every technology the person does not know yet:
              scaled to the best match (0 -> 1)           (builds on what they already know)
 """
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import Article, TechScore, Technology, TechnologyAlias
+from app.models import Article, MetricSnapshot, TechScore, Technology, TechnologyAlias
 
 W_DEMAND, W_MOMENTUM, W_FIT = 0.55, 0.25, 0.20
 GROWTH_CAP = 0.5
@@ -68,6 +68,11 @@ def analyze(db: Session, known: dict[int, dict], category: str | None = None, li
                 "note": "No scores yet. Run the data pipeline first."}
 
     rank_of = {i: n for n, i in enumerate(ranked, 1)}
+    job_share: dict[int, float] = {}   # newest value of each technology's share of hiring-thread posts
+    for tid, value in db.execute(select(MetricSnapshot.technology_id, MetricSnapshot.value).where(
+            MetricSnapshot.metric == "hiring.share_pct",
+            MetricSnapshot.captured_on >= date.today() - timedelta(days=45)).order_by(MetricSnapshot.captured_on)):
+        job_share[tid] = value
     co = cooccurrence(db)
     candidates = [i for i in scores if i not in known and (not category or techs[i].category == category)]
     fit_raw = {i: sum(co[i][k] for k in known) for i in candidates}
@@ -87,6 +92,8 @@ def analyze(db: Session, known: dict[int, dict], category: str | None = None, li
             top_count, top_k = related[0]
             reasons.append(f"Often used with {techs[top_k].name} ({top_count} recent articles mention both)")
         reasons.append(f"Ranked #{rank_of[i]} of {len(ranked)} by DevIntel Score")
+        if job_share.get(i, 0) >= 3:
+            reasons.append(f"Mentioned in {round(job_share[i])}% of recent Hacker News job posts")
         if s.is_emerging:
             reasons.append("Flagged as taking off")
         elif s.growth_30d is not None and s.growth_30d >= 0.15:

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { loadCompare } from '../lib/api'
-import { METRIC_LABELS, categoryName, compact, growthText } from '../lib/format'
+import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 
 const COLORS = [
@@ -73,7 +73,7 @@ export default function ComparePage({ technologies }) {
   const techs = state.data?.technologies
   const rows = techs
     ? Object.entries(METRIC_LABELS)
-        .map(([key, label]) => ({ label, values: techs.map((t) => t.metrics[key] ?? null) }))
+        .map(([key, label]) => ({ key, label, values: techs.map((t) => t.metrics[key] ?? null) }))
         .filter((r) => r.values.some((v) => v != null))
     : []
 
@@ -117,7 +117,7 @@ export default function ComparePage({ technologies }) {
                   <dt className="col-span-2 font-bold">{r.label}</dt>
                   {r.values.map((v, i) => (
                     <dd key={i} className={`border-2 border-ink px-2 py-1 ${lead === i ? 'bg-mint font-bold' : 'bg-white'}`}>
-                      {v == null ? 'no data' : compact.format(v)}
+                      {v == null ? 'no data' : formatMetric(r.key, v)}
                     </dd>
                   ))}
                 </div>

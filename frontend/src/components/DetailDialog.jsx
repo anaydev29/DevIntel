@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadTechnology } from '../lib/api'
-import { METRIC_LABELS, categoryName, compact, growthText } from '../lib/format'
+import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
 
 function Sticker({ children, color = 'bg-white' }) {
   return <span className={`border-[3px] border-ink px-3 py-0.5 font-bold shadow-brut-xs ${color}`}>{children}</span>
@@ -52,7 +52,7 @@ export default function DetailDialog({ slug, onClose }) {
                 .map(([key, label]) => (
                   <div key={key} className="flex justify-between gap-4 border-b-2 border-ink pb-1.5">
                     <dt>{label}</dt>
-                    <dd className="font-bold">{compact.format(tech.latest_metrics[key])}</dd>
+                    <dd className="font-bold">{formatMetric(key, tech.latest_metrics[key])}</dd>
                   </div>
                 ))}
             </dl>
