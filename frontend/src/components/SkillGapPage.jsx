@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
-import { analyzeSkills } from '../lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { analyzeSkills, saveSkills } from '../lib/api'
 import { categoryName, growthText } from '../lib/format'
+import { useAuth } from '../lib/auth'
+import SkillPicker from './SkillPicker'
 
 const SOURCE_LABEL = { manual: 'you picked it', github: 'found on GitHub', both: 'picked and found on GitHub' }
 
@@ -13,12 +15,28 @@ export default function SkillGapPage({ technologies }) {
   const [username, setUsername] = useState('')
   const [state, setState] = useState({ status: 'idle', data: null, error: '' })
 
-  const groups = useMemo(() => {
-    const map = new Map()
-    technologies.forEach((t) => map.set(t.category, [...(map.get(t.category) ?? []), t]))
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
-      .map(([cat, list]) => [cat, list.sort((x, y) => x.name.localeCompare(y.name))])
-  }, [technologies])
+  const { authenticated, profile, setProfile } = useAuth()
+  const [saved, setSaved] = useState('')
+  const prefilled = useRef(false)
+
+  // Pre-fill from the signed-in user's saved profile, once
+  useEffect(() => {
+    if (profile && !prefilled.current) {
+      prefilled.current = true
+      setPicked(new Set(profile.skills))
+      setUsername(profile.user.github_username ?? '')
+    }
+  }, [profile])
+
+  async function saveToProfile() {
+    try {
+      await saveSkills([...picked])
+      setProfile({ ...profile, skills: [...picked] })
+      setSaved('Saved to your profile')
+    } catch (e) {
+      setSaved(e.message)
+    }
+  }
 
   const toggle = (slug) => setPicked((prev) => {
     const next = new Set(prev)
@@ -45,21 +63,7 @@ export default function SkillGapPage({ technologies }) {
       <p className="mb-5 text-[0.95rem]">Tell us what you already know and we will rank what to learn next, using demand, momentum and how well it fits your stack.</p>
 
       <h3 className="mb-2 font-display text-xl">1. Pick the technologies you know</h3>
-      <div className="mb-5 flex flex-col gap-3">
-        {groups.map(([cat, list]) => (
-          <div key={cat}>
-            <p className="mb-1 text-sm font-bold">{categoryName(cat)}</p>
-            <div className="flex flex-wrap gap-2">
-              {list.map((t) => (
-                <button key={t.slug} type="button" aria-pressed={picked.has(t.slug)} onClick={() => toggle(t.slug)}
-                  className={`press cursor-pointer border-[3px] border-ink px-3 py-0.5 font-bold shadow-brut-xs hover:bg-sun hover:text-ink ${picked.has(t.slug) ? 'bg-ink text-white' : 'bg-white'}`}>
-                  {t.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className="mb-5"><SkillPicker technologies={technologies} picked={picked} onToggle={toggle} /></div>
 
       <h3 className="mb-2 font-display text-xl">2. Or add your GitHub username (optional)</h3>
       <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="for example octocat" aria-label="GitHub username"
@@ -70,6 +74,15 @@ export default function SkillGapPage({ technologies }) {
         className="press cursor-pointer border-[3px] border-ink bg-sun px-6 py-2 text-lg font-bold shadow-brut-sm disabled:cursor-not-allowed disabled:opacity-50">
         {state.status === 'loading' ? 'Analyzing...' : 'Find my gaps'}
       </button>
+      {authenticated ? (
+        <button type="button" disabled={picked.size === 0} onClick={saveToProfile}
+          className="press ml-3 cursor-pointer border-[3px] border-ink bg-white px-6 py-2 text-lg font-bold shadow-brut-sm disabled:cursor-not-allowed disabled:opacity-50">
+          Save skills to my profile
+        </button>
+      ) : (
+        <p className="mt-3 text-sm">Sign in to save your skills and have them filled in next time.</p>
+      )}
+      {saved && <p className="mt-3 font-bold" role="status">{saved}</p>}
 
       {state.status === 'error' && <p className="mt-5 border-[3px] border-ink bg-hot p-4 font-bold" role="alert">{state.error}</p>}
 

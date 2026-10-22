@@ -6,6 +6,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://devintel:devintel@localhost:5432/devintel"
     github_token: str | None = None
     stackexchange_key: str | None = None
+    # Google login (leave empty to run without accounts)
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    session_secret: str | None = None        # long random string; signs the login cookie
+    public_base_url: str | None = None       # e.g. https://devintel.example.com (needed behind a proxy)
+    cookie_secure: bool = False              # set true when served over HTTPS
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

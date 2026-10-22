@@ -32,3 +32,24 @@ export async function analyzeSkills(payload) {
   if (!res.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'Something went wrong. Please try again.')
   return data
 }
+
+async function send(method, path, body) {
+  const res = await fetch(path, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (res.status === 204) return null
+  const data = await res.json().catch(() => null)
+  if (!res.ok) throw new Error(typeof data?.detail === 'string' ? data.detail : 'Something went wrong. Please try again.')
+  return data
+}
+
+export const authMe = () => get('/auth/me')
+export const signOutRequest = () => send('POST', '/auth/logout')
+export const loadProfile = () => get('/me/profile')
+export const saveGithubUsername = (username) => send('PUT', '/me/profile', { github_username: username })
+export const saveSkills = (skills) => send('PUT', '/me/skills', { skills })
+export const addToWatchlist = (slug) => send('PUT', `/me/watchlist/${encodeURIComponent(slug)}`)
+export const removeFromWatchlist = (slug) => send('DELETE', `/me/watchlist/${encodeURIComponent(slug)}`)
+export const deleteAccount = () => send('DELETE', '/me')

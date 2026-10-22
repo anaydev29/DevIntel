@@ -7,6 +7,8 @@ import DetailDialog from './components/DetailDialog'
 import { BlogsPage, NewsPage, ReposPage } from './components/Feeds'
 import ComparePage from './components/ComparePage'
 import SkillGapPage from './components/SkillGapPage'
+import AccountBar from './components/AccountBar'
+import ProfilePage from './components/ProfilePage'
 
 const TABS = [
   ['rankings', 'Rankings'],
@@ -15,6 +17,7 @@ const TABS = [
   ['blogs', 'Blogs'],
   ['news', 'News'],
   ['repos', 'Trending repos'],
+  ['profile', 'My profile'],
 ]
 
 export default function App() {
@@ -29,6 +32,7 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-[1180px] p-4 sm:p-8">
+      <AccountBar onProfile={() => setTab('profile')} />
       <Hero count={data?.items.length ?? 0} runs={data?.runs ?? []} />
 
       <nav className="mt-8 flex flex-wrap gap-3" role="tablist" aria-label="Sections">
@@ -66,6 +70,7 @@ export default function App() {
         {tab === 'blogs' && <BlogsPage technologies={data?.items ?? []} />}
         {tab === 'news' && <NewsPage />}
         {tab === 'repos' && <ReposPage />}
+        {tab === 'profile' && <ProfilePage technologies={data?.items ?? []} onSelect={setSelected} />}
       </div>
 
       <DetailDialog slug={selected} onClose={() => setSelected(null)} />

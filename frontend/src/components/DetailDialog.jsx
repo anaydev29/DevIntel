@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { loadTechnology } from '../lib/api'
+import { addToWatchlist, loadTechnology, removeFromWatchlist } from '../lib/api'
+import { useAuth } from '../lib/auth'
 import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
 
 function Sticker({ children, color = 'bg-white' }) {
@@ -8,6 +9,8 @@ function Sticker({ children, color = 'bg-white' }) {
 
 export default function DetailDialog({ slug, onClose }) {
   const ref = useRef(null)
+  const { authenticated, profile, setProfile } = useAuth()
+  const [busy, setBusy] = useState(false)
   const [tech, setTech] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -24,6 +27,17 @@ export default function DetailDialog({ slug, onClose }) {
   }, [slug])
 
   const growth = tech && growthText(tech.growth_30d)
+  const watching = !!tech && !!profile?.watchlist.some((w) => w.slug === tech.slug)
+
+  async function toggleWatch() {
+    setBusy(true)
+    try {
+      const list = await (watching ? removeFromWatchlist(tech.slug) : addToWatchlist(tech.slug))
+      setProfile({ ...profile, watchlist: list })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <dialog
@@ -58,6 +72,14 @@ export default function DetailDialog({ slug, onClose }) {
             </dl>
             {tech.aliases.length > 0 && (
               <p className="mt-4 text-sm">Also known as: {tech.aliases.join(', ')}</p>
+            )}
+            {authenticated ? (
+              <button type="button" disabled={busy || !profile} onClick={toggleWatch}
+                className="press mt-4 mr-3 cursor-pointer border-[3px] border-ink bg-mint px-5 py-1.5 font-bold shadow-brut-sm disabled:opacity-50">
+                {watching ? 'Remove from watchlist' : 'Add to watchlist'}
+              </button>
+            ) : (
+              <p className="mt-4 text-sm">Sign in to add this to your watchlist.</p>
             )}
           </>
         )}

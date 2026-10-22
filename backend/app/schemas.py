@@ -143,3 +143,46 @@ class SkillGapOut(BaseModel):
     coverage: Coverage
     recommendations: list[Recommendation]
     note: str | None = None
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    name: str | None
+    avatar_url: str | None
+    github_username: str | None
+    role: str
+
+
+class MeOut(BaseModel):
+    authenticated: bool
+    login_enabled: bool
+    user: UserOut | None = None
+
+
+class WatchItemOut(BaseModel):
+    slug: str
+    name: str
+    category: str
+    devintel_score: float | None
+    growth_30d: float | None
+    is_emerging: bool
+
+
+class ProfileOut(BaseModel):
+    user: UserOut
+    skills: list[str]
+    watchlist: list[WatchItemOut]
+
+
+class ProfileUpdate(BaseModel):
+    github_username: str | None = None
+
+
+class SkillsUpdate(BaseModel):
+    skills: list[str] = []
+
+
+class SkillsOut(BaseModel):
+    skills: list[str]
+    unrecognized: list[str]
