@@ -183,3 +183,48 @@ class WatchlistItem(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     technology_id: Mapped[int] = mapped_column(ForeignKey("technologies.id", ondelete="CASCADE"))
     added_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Thread(Base):
+    """A discussion. Today: one per technology / article / repo. Later: kind="general" user topics (with a title)."""
+    __tablename__ = "threads"
+    __table_args__ = (UniqueConstraint("kind", "ref", name="uq_thread_target"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), index=True)      # technology / article / repo / general
+    ref: Mapped[str] = mapped_column(String(200))                  # tech slug, article id, repo full name
+    title: Mapped[str | None] = mapped_column(String(200))         # used by general topics later
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("threads.id", ondelete="CASCADE"), index=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"))  # one level deep
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    body: Mapped[str] = mapped_column(Text)                        # plain text only
+    status: Mapped[str] = mapped_column(String(10), default="visible")   # visible / deleted / hidden
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CommentVote(Base):
+    __tablename__ = "comment_votes"
+    __table_args__ = (UniqueConstraint("comment_id", "user_id", name="uq_vote"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+
+
+class CommentReport(Base):
+    __tablename__ = "comment_reports"
+    __table_args__ = (UniqueConstraint("comment_id", "reporter_id", name="uq_report"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    comment_id: Mapped[int] = mapped_column(ForeignKey("comments.id", ondelete="CASCADE"), index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    reason: Mapped[str] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

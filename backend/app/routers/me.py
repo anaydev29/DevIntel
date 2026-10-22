@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.github_profile import USERNAME_RE
-from app.models import TechScore, Technology, User, UserSkill, WatchlistItem
+from app.models import Comment, CommentReport, CommentVote, TechScore, Technology, User, UserSkill, WatchlistItem
 from app.normalize import resolve_technology
 from app.routers.auth import require_user, user_out
 from app.schemas import ProfileOut, ProfileUpdate, SkillsOut, SkillsUpdate, WatchItemOut
@@ -94,6 +94,15 @@ def delete_account(request: Request, user: User = Depends(require_user), db: Ses
     """Permanently delete the account and everything saved with it."""
     db.execute(delete(UserSkill).where(UserSkill.user_id == user.id))
     db.execute(delete(WatchlistItem).where(WatchlistItem.user_id == user.id))
+    own_ids = list(db.scalars(select(Comment.id).where(Comment.author_id == user.id)))
+    reply_ids = list(db.scalars(select(Comment.id).where(Comment.parent_id.in_(own_ids)))) if own_ids else []
+    gone = own_ids + reply_ids                                   # their comments plus replies hanging on them
+    db.execute(delete(CommentVote).where(CommentVote.user_id == user.id))
+    db.execute(delete(CommentReport).where(CommentReport.reporter_id == user.id))
+    if gone:
+        db.execute(delete(CommentVote).where(CommentVote.comment_id.in_(gone)))
+        db.execute(delete(CommentReport).where(CommentReport.comment_id.in_(gone)))
+        db.execute(delete(Comment).where(Comment.id.in_(gone)))
     db.delete(user)
     db.commit()
     request.session.clear()

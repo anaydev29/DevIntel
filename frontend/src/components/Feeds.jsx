@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { loadBlogs, loadNews, loadRepos } from '../lib/api'
 import { compact, timeAgo } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
+import { useCounts } from '../lib/useCounts'
+import { DiscussToggle } from './DiscussionPanel'
 
 const cardClass = 'border-[3px] border-ink bg-white p-4 shadow-brut-sm'
 
@@ -32,7 +34,7 @@ function Panel({ title, hint, children }) {
   )
 }
 
-function ArticleCard({ a, scoreLabel }) {
+function ArticleCard({ a, scoreLabel, count = 0 }) {
   const host = (() => { try { return new URL(a.url).hostname.replace(/^www\./, '') } catch { return '' } })()
   return (
     <li className={cardClass}>
@@ -48,11 +50,12 @@ function ArticleCard({ a, scoreLabel }) {
         <Stat>{compact.format(a.comments)} comments</Stat>
         {a.discussion_url && (
           <a href={a.discussion_url} target="_blank" rel="noopener noreferrer" className="border-2 border-ink bg-sun px-2 text-sm font-bold hover:bg-white">
-            Discussion
+            HN thread
           </a>
         )}
         {a.tags.slice(0, 4).map((t) => <Stat key={t} color="bg-lilac">{t}</Stat>)}
       </div>
+      <DiscussToggle kind="article" refKey={String(a.id)} initialCount={count} />
     </li>
   )
 }
@@ -60,6 +63,7 @@ function ArticleCard({ a, scoreLabel }) {
 export function BlogsPage({ technologies }) {
   const [tech, setTech] = useState('')
   const state = useAsync(() => loadBlogs(tech), [tech])
+  const counts = useCounts('article', (state.data ?? []).map((a) => a.id))
   return (
     <Panel title="Blogs" hint="Most popular dev.to articles from the last two weeks.">
       <label className="mb-4 flex flex-wrap items-center gap-3 font-bold">
@@ -70,23 +74,25 @@ export function BlogsPage({ technologies }) {
         </select>
       </label>
       <Status state={state} empty="No articles yet." command="python run_pipeline.py --source devto" />
-      {state.data?.length > 0 && <ul className="flex flex-col gap-3">{state.data.map((a) => <ArticleCard key={a.id} a={a} scoreLabel="reactions" />)}</ul>}
+      {state.data?.length > 0 && <ul className="flex flex-col gap-3">{state.data.map((a) => <ArticleCard key={a.id} a={a} scoreLabel="reactions" count={counts[a.id] ?? 0} />)}</ul>}
     </Panel>
   )
 }
 
 export function NewsPage() {
   const state = useAsync(loadNews, [])
+  const counts = useCounts('article', (state.data ?? []).map((a) => a.id))
   return (
     <Panel title="News" hint="What is on the Hacker News front page right now.">
       <Status state={state} empty="No news yet." command="python run_pipeline.py --source hn_frontpage" />
-      {state.data?.length > 0 && <ul className="flex flex-col gap-3">{state.data.map((a) => <ArticleCard key={a.id} a={a} scoreLabel="points" />)}</ul>}
+      {state.data?.length > 0 && <ul className="flex flex-col gap-3">{state.data.map((a) => <ArticleCard key={a.id} a={a} scoreLabel="points" count={counts[a.id] ?? 0} />)}</ul>}
     </Panel>
   )
 }
 
 export function ReposPage() {
   const state = useAsync(loadRepos, [])
+  const counts = useCounts('repo', (state.data ?? []).map((r) => r.full_name))
   const [lang, setLang] = useState('all')
   const languages = useMemo(() => [...new Set((state.data ?? []).map((r) => r.language).filter(Boolean))].sort(), [state.data])
   const shown = (state.data ?? []).filter((r) => lang === 'all' || r.language === lang)
@@ -117,6 +123,7 @@ export function ReposPage() {
                   {r.language && <Stat color="bg-lilac">{r.language}</Stat>}
                   {r.created_at && <Stat>created {timeAgo(r.created_at)}</Stat>}
                 </div>
+                <DiscussToggle kind="repo" refKey={r.full_name} initialCount={counts[r.full_name] ?? 0} />
               </div>
             </li>
           ))}

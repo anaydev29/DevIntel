@@ -186,3 +186,52 @@ class SkillsUpdate(BaseModel):
 class SkillsOut(BaseModel):
     skills: list[str]
     unrecognized: list[str]
+
+
+class CommentIn(BaseModel):
+    kind: str
+    ref: str
+    body: str
+    parent_id: int | None = None
+
+
+class CommentEdit(BaseModel):
+    body: str
+
+
+class VoteIn(BaseModel):
+    voted: bool
+
+
+class ReportIn(BaseModel):
+    reason: str
+
+
+class CommentAuthor(BaseModel):
+    name: str
+    initial: str
+
+
+class CommentOut(BaseModel):
+    id: int
+    author: CommentAuthor | None       # None when the comment is deleted or hidden
+    body: str
+    status: str                        # visible / deleted / hidden
+    created_at: datetime
+    edited_at: datetime | None
+    score: int
+    voted: bool
+    mine: bool
+    replies: list["CommentOut"] = []
+
+
+class DiscussionOut(BaseModel):
+    kind: str
+    ref: str
+    total: int
+    comments: list[CommentOut]
+
+
+class VoteOut(BaseModel):
+    score: int
+    voted: bool

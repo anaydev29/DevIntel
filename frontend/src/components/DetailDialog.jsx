@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addToWatchlist, loadTechnology, removeFromWatchlist } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import DiscussionPanel from './DiscussionPanel'
 import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
 
 function Sticker({ children, color = 'bg-white' }) {
@@ -45,7 +46,7 @@ export default function DetailDialog({ slug, onClose }) {
       aria-labelledby="dlg-title"
       onClose={onClose}
       onClick={(e) => e.target === ref.current && ref.current.close()}
-      className="m-auto w-[calc(100%-2rem)] max-w-xl border-[3px] border-ink bg-white p-0 shadow-[10px_10px_0_#000]"
+      className="m-auto max-h-[90vh] w-[calc(100%-2rem)] max-w-xl overflow-y-auto border-[3px] border-ink bg-white p-0 shadow-[10px_10px_0_#000]"
     >
       <div className="p-6">
         {failed && <p>Could not load this technology. Check that the API is running.</p>}
@@ -82,6 +83,12 @@ export default function DetailDialog({ slug, onClose }) {
               <p className="mt-4 text-sm">Sign in to add this to your watchlist.</p>
             )}
           </>
+        )}
+        {tech && (
+          <div className="mt-6 border-t-[3px] border-ink pt-4">
+            <h3 className="mb-3 font-display text-2xl">Discussion</h3>
+            <DiscussionPanel kind="technology" refKey={tech.slug} />
+          </div>
         )}
         <button
           type="button"

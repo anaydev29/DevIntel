@@ -20,6 +20,7 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 | **Rankings** | 32 technologies ranked by DevIntel Score (0 to 100), with search, category filters, 30-day growth and a "Taking off" panel for fast-growing technologies. Select a row for all the numbers behind it. |
 | **Skill gap** | Pick the technologies you know and/or enter a GitHub username. DevIntel reads your public repositories (main language and topics), then ranks what to learn next by demand, momentum and how well each technology fits your stack, with starter articles. |
 | **My profile** | Sign in with Google to save your skills (they pre-fill the Skill gap tab), keep a GitHub username, and build a watchlist of technologies. Browsing never needs an account, and you can delete your account at any time. |
+| **Discussions** | Every technology, blog post, news item and repository has a discussion: comments, replies, upvotes and a report button. Anyone can read; signing in is needed to write. | 
 | **Compare** | Pick two technologies (for example FastAPI vs Django) and see a side-by-side summary, every signal with the leader highlighted, and a score-over-time chart. |
 | **Blogs** | The most popular dev.to articles of the last two weeks, filterable by technology. |
 | **News** | The current Hacker News front page. |
@@ -90,7 +91,7 @@ GitHub Actions (daily)          Supabase PostgreSQL          Browser
 
 ### Database tables
 
-`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`
+`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`
 
 ## Project structure
 
@@ -101,9 +102,9 @@ backend/
     models.py  database.py  config.py  schemas.py  main.py
     seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos
-    routers/      meta, technologies, rankings, feed, compare, skills, auth, me
+    routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (40 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (50 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -180,6 +181,8 @@ pytest -q
 | `GET /feed/repos` | Trending new repositories (`language`) |
 | `GET /auth/google/login`, `/auth/google/callback`, `GET /auth/me`, `POST /auth/logout` | Google sign-in and the login session |
 | `GET/PUT /me/profile`, `PUT /me/skills`, `PUT/DELETE /me/watchlist/{name}`, `DELETE /me` | Saved profile, skills, watchlist and account deletion (sign-in required) |
+| `GET /discussions?kind=&ref=`, `GET /discussions/counts` | Read a discussion, or comment counts for a list of items (public) |
+| `POST /discussions/comments`, `PUT/DELETE /discussions/comments/{id}`, `PUT .../vote`, `POST .../report` | Write, edit, delete, upvote and report comments (sign-in required) |
 | `GET /categories`, `/pipeline/runs`, `/health` | Metadata, freshness log, health check |
 
 ## Google login setup (optional)
@@ -189,21 +192,28 @@ Without these settings the app works normally and the sign-in button explains th
 1. In the Google Cloud Console, create a project. Menu names change, so look for **OAuth consent screen** (now part of "Google Auth Platform").
 2. Set the app name, a support email and user type *External*. Request only the basic scopes: `openid`, `email`, `profile`.
 3. While the app is in *Testing* status, only the Google accounts you add as **test users** (up to 100) can sign in. Publishing the app lifts that limit, and Google may require verification before showing a custom app name or logo.
-4. Create **Credentials**, then **OAuth client ID**, type *Web application*, with these authorized redirect URIs:
-   - `http://localhost:5173/auth/google/callback` (development through the Vite server)
-   - `http://localhost:8000/auth/google/callback` (single-server build)
-   - your production URL plus `/auth/google/callback` once deployed
+4. Create **Credentials**, then **OAuth client ID**, type *Web application*, with this authorized redirect URI for development:
+   - `http://localhost:5173/auth/google/callback`
+
+   Add your production URL plus `/auth/google/callback` once deployed. Changes in Google Cloud can take a few minutes to apply.
 5. Put the values in `backend/.env`:
 
 ```
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 SESSION_SECRET=a-long-random-string      # python -c "import secrets; print(secrets.token_urlsafe(48))"
+PUBLIC_BASE_URL=http://localhost:5173    # development: fixes the redirect address
 ```
 
-In production also set `PUBLIC_BASE_URL=https://your-domain` and `COOKIE_SECURE=true`. Never commit these values.
+Always open the app at `http://localhost:5173` (not `127.0.0.1`) when signing in. The Vite dev server hides the address you opened from the backend, so without `PUBLIC_BASE_URL` Google would see `127.0.0.1:8000` and reject it with `redirect_uri_mismatch`. If you use the single-server build on port 8000 instead, set `PUBLIC_BASE_URL=http://localhost:8000` and register `http://localhost:8000/auth/google/callback`.
+
+In production set `PUBLIC_BASE_URL=https://your-domain` and `COOKIE_SECURE=true`. Never commit these values.
 
 **Privacy:** the app stores only your Google id, email, name and picture, plus the skills, GitHub username and watchlist you choose to save. It never sees your Google password. "Delete my account" removes everything.
+
+## Discussion rules built into the code
+
+Plain text only (nothing a user types is ever run as HTML), 2,000 characters, at most 2 links per comment, 10 comments per hour per user, no identical repeat posts, replies one level deep. Public names are shortened to "First L." and email addresses are never shown. A comment is hidden automatically after 3 reports from different users. Users can edit and delete their own comments, and deleting an account removes its comments.
 
 ## Daily automation
 
@@ -221,6 +231,7 @@ Setup notes:
 - **GitHub has no official trending API.** "Trending repos" are the most-starred repositories created in the last 7 days, which is an approximation of GitHub's own page.
 - **Skill detection is shallow.** GitHub detection uses each repository's main language and topics only, so it misses libraries that are not listed as topics. Picking skills by hand fills the gap.
 - **Name ambiguity.** Words like "Go" and "Swift" are ambiguous in Hacker News titles. Overrides reduce the noise, but some remains.
+- **Moderation is basic for now.** Reported comments are hidden automatically after 3 reports, but there is no moderator screen yet to restore or remove them (planned next).
 - **Sign-in is limited while the Google app is in testing.** Only listed test users can sign in until the app is published.
 - **Hiring signal is approximate.** It counts keyword matches in one month's "Who is hiring?" thread. "Go" is counted only when written "golang", so it is under-counted, and the thread skews toward startups and the US.
 - **Bias.** Hacker News skews toward startups and the US, and Stack Overflow question counts favor older technologies. That is why growth is shown next to size everywhere.
@@ -236,7 +247,8 @@ Setup notes:
 - [x] Hiring-demand signal from the monthly "Who is hiring?" threads
 - [ ] Technology detail pages with related technologies and learning resources
 - [x] Accounts: Google sign-in, profile, saved skills, watchlist
-- [ ] Discussions on technologies, blogs, news and repos (replies, votes, reports)
+- [x] Discussions on technologies, blogs, news and repos (replies, upvotes, reports)
+- [ ] Free topic posts (the data model already supports them; the screen is not built yet)
 - [ ] Moderation: roles, hide and delete tools, rate limits, community guidelines
 - [ ] Backtest of the emerging flag, then threshold tuning
 - [ ] Public deployment with a live link
