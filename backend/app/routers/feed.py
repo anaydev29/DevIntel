@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.cache import cached
 from app.database import get_db
 from app.models import Article, Technology, TrendingRepo
 from app.normalize import resolve_technology
@@ -21,6 +22,7 @@ def _article_out(a: Article, tech_slug: str | None) -> ArticleOut:
 
 
 @router.get("/blogs", response_model=list[ArticleOut])
+@cached()
 def blogs(tech: str | None = None, days: int = Query(14, le=60), limit: int = Query(30, le=100),
           db: Session = Depends(get_db)):
     """Popular recent dev.to articles, optionally for one technology."""
@@ -37,23 +39,21 @@ def blogs(tech: str | None = None, days: int = Query(14, le=60), limit: int = Qu
 
 
 @router.get("/news", response_model=list[ArticleOut])
+@cached()
 def news(limit: int = Query(30, le=100), db: Session = Depends(get_db)):
     """Current Hacker News front page (as of the last collection run)."""
-    day = db.scalar(select(func.max(Article.fetched_on)).where(Article.source == "hackernews"))
-    if day is None:
-        return []
-    rows = db.scalars(select(Article).where(Article.source == "hackernews", Article.fetched_on == day)
+    latest_day = select(func.max(Article.fetched_on)).where(Article.source == "hackernews").scalar_subquery()
+    rows = db.scalars(select(Article).where(Article.source == "hackernews", Article.fetched_on == latest_day)
                       .order_by(Article.score.desc()).limit(limit)).all()
     return [_article_out(a, None) for a in rows]
 
 
 @router.get("/repos", response_model=list[RepoOut])
+@cached()
 def repos(language: str | None = None, limit: int = Query(50, le=100), db: Session = Depends(get_db)):
     """Hottest new GitHub repositories (created in the last 7 days), latest snapshot."""
-    day: date | None = db.scalar(select(func.max(TrendingRepo.captured_on)))
-    if day is None:
-        return []
-    stmt = select(TrendingRepo).where(TrendingRepo.captured_on == day)
+    latest_day = select(func.max(TrendingRepo.captured_on)).scalar_subquery()
+    stmt = select(TrendingRepo).where(TrendingRepo.captured_on == latest_day)
     if language:
         stmt = stmt.where(func.lower(TrendingRepo.language) == language.lower())
     rows = db.scalars(stmt.order_by(TrendingRepo.rank).limit(limit)).all()

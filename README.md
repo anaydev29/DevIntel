@@ -105,7 +105,7 @@ backend/
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (59 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (66 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -187,6 +187,18 @@ pytest -q
 | `GET /moderation/queue`, `/moderation/log`, `POST /moderation/comments/{id}/action`, `POST/DELETE /moderation/users/{id}/ban` | Moderator tools (moderators and admins only) |
 | `GET /moderation/users`, `PUT /moderation/users/{id}/role` | Appoint moderators (admins only) |
 | `GET /categories`, `/pipeline/runs`, `/health` | Metadata, freshness log, health check |
+
+## Performance
+
+When the database is hosted far away, every query is a network round trip, so the main cost of a page is how many queries it makes. The code is tuned for that and guarded by tests (`backend/tests/test_performance.py`):
+
+- **Query budgets:** each endpoint has a maximum number of queries that a test enforces (for example the skill-gap request went from 17 queries to 6).
+- **Server cache:** read-only answers (rankings, feeds, compare, technology details) are reused for `CACHE_SECONDS` (default 120; `0` turns it off). A repeat request costs no database round trip. Anything personal (profile, discussions, moderation) is never cached.
+- **Indexes** that older databases lack are added at startup.
+- **Compression:** API responses are gzip-compressed, and built files in `/assets` are cached by browsers for a year.
+- **Frontend:** fonts are bundled (no request to Google), tabs are loaded on demand and prefetched when the browser is idle, and public API answers are reused in the browser for a minute.
+
+The biggest remaining factor is distance: keep the database and the server in the same region, and as close to your users as you can.
 
 ## Google login setup (optional)
 

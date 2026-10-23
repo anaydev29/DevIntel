@@ -1,17 +1,30 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { loadDashboard } from './lib/api'
 import Hero from './components/Hero'
 import RankingCard from './components/RankingCard'
 import EmergingCard from './components/EmergingCard'
-import DetailDialog from './components/DetailDialog'
-import { BlogsPage, NewsPage, ReposPage } from './components/Feeds'
-import ComparePage from './components/ComparePage'
-import SkillGapPage from './components/SkillGapPage'
 import AccountBar from './components/AccountBar'
-import ProfilePage from './components/ProfilePage'
-import ModerationPage from './components/ModerationPage'
-import { GuidelinesPage, PrivacyPage } from './components/LegalPages'
 import { useAuth } from './lib/auth'
+
+// Tabs are loaded the first time they are opened (and prefetched when the browser is idle), so the first page stays small
+const DetailDialog = lazy(() => import('./components/DetailDialog'))
+const ComparePage = lazy(() => import('./components/ComparePage'))
+const SkillGapPage = lazy(() => import('./components/SkillGapPage'))
+const ProfilePage = lazy(() => import('./components/ProfilePage'))
+const ModerationPage = lazy(() => import('./components/ModerationPage'))
+const BlogsPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.BlogsPage })))
+const NewsPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.NewsPage })))
+const ReposPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.ReposPage })))
+const GuidelinesPage = lazy(() => import('./components/LegalPages').then((m) => ({ default: m.GuidelinesPage })))
+const PrivacyPage = lazy(() => import('./components/LegalPages').then((m) => ({ default: m.PrivacyPage })))
+
+const prefetchTabs = () => {
+  import('./components/DetailDialog')
+  import('./components/ComparePage')
+  import('./components/SkillGapPage')
+  import('./components/Feeds')
+  import('./components/ProfilePage')
+}
 
 const TABS = [
   ['rankings', 'Rankings'],
@@ -33,6 +46,8 @@ export default function App() {
 
   useEffect(() => {
     loadDashboard().then(setData).catch(() => setError(true))
+    const schedule = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1500))
+    schedule(prefetchTabs)
   }, [])
 
   return (
@@ -69,6 +84,7 @@ export default function App() {
         </div>
       )}
 
+      <Suspense fallback={<p className="mt-8 border-[3px] border-ink bg-white p-4 font-bold">Loading...</p>}>
       <div className="mt-8">
         {tab === 'rankings' && data && (
           <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
@@ -87,12 +103,18 @@ export default function App() {
         {tab === 'profile' && <ProfilePage technologies={data?.items ?? []} onSelect={setSelected} />}
       </div>
 
+      </Suspense>
+
       <footer className="mt-12 flex flex-wrap gap-4 border-t-[3px] border-ink pt-4 text-sm font-bold">
         <button type="button" className="cursor-pointer underline decoration-2 underline-offset-4 hover:bg-sun" onClick={() => setTab('guidelines')}>Community guidelines</button>
         <button type="button" className="cursor-pointer underline decoration-2 underline-offset-4 hover:bg-sun" onClick={() => setTab('privacy')}>Privacy</button>
       </footer>
 
-      <DetailDialog slug={selected} onClose={() => setSelected(null)} />
+      {selected && (
+        <Suspense fallback={null}>
+          <DetailDialog slug={selected} onClose={() => setSelected(null)} />
+        </Suspense>
+      )}
     </div>
   )
 }

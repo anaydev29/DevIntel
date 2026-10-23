@@ -1,7 +1,24 @@
+// Public data only changes when the daily pipeline runs, so reuse answers for a minute. This also merges
+// identical requests that are already in flight. Anything personal (profile, discussions...) is never cached.
+const PUBLIC = ['/rankings', '/technologies', '/categories', '/pipeline', '/feed', '/compare']
+const CACHE_MS = 60_000
+const cache = new Map()
+
 async function get(path) {
-  const res = await fetch(path)
-  if (!res.ok) throw new Error(`${path} returned ${res.status}`)
-  return res.json()
+  const cacheable = PUBLIC.some((p) => path.startsWith(p))
+  if (cacheable) {
+    const hit = cache.get(path)
+    if (hit && hit.expires > Date.now()) return hit.promise
+  }
+  const promise = fetch(path).then((res) => {
+    if (!res.ok) throw new Error(`${path} returned ${res.status}`)
+    return res.json()
+  })
+  if (cacheable) {
+    cache.set(path, { promise, expires: Date.now() + CACHE_MS })
+    promise.catch(() => cache.delete(path))
+  }
+  return promise
 }
 
 export async function loadDashboard() {

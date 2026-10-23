@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.cache import cached
 from app.database import get_db
 from app.models import PipelineRun, Technology
 from app.schemas import PipelineRunOut
@@ -15,11 +16,13 @@ def health():
 
 
 @router.get("/categories", response_model=list[str])
+@cached()
 def categories(db: Session = Depends(get_db)):
     return list(db.scalars(select(Technology.category).distinct().order_by(Technology.category)))
 
 
 @router.get("/pipeline/runs", response_model=list[PipelineRunOut])
+@cached()
 def pipeline_runs(limit: int = 20, db: Session = Depends(get_db)):
     """Data-freshness log: shows when each source was last collected and how it went."""
     runs = db.scalars(select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(limit)).all()

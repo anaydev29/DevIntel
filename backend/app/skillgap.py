@@ -11,6 +11,8 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select
+
+from app.cache import cached
 from sqlalchemy.orm import Session
 
 from app.models import Article, MetricSnapshot, TechScore, Technology, TechnologyAlias
@@ -20,6 +22,7 @@ GROWTH_CAP = 0.5
 TOP_N = 10
 
 
+@cached(ttl=600)   # reads every recent article's tags, so reuse it for 10 minutes
 def cooccurrence(db: Session, days: int = 60) -> dict[int, Counter]:
     """tech_id -> Counter(other tech_id -> number of recent articles tagged with both)."""
     names: dict[str, int] = {}
@@ -39,19 +42,23 @@ def cooccurrence(db: Session, days: int = 60) -> dict[int, Counter]:
     return co
 
 
-def _starters(db: Session, tech_id: int) -> list[dict]:
+def _starters(db: Session, tech_ids: list[int]) -> dict[int, list[dict]]:
+    """Top 2 recent dev.to articles per technology, fetched for all technologies in one query."""
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-    rows = db.scalars(select(Article).where(Article.source == "devto", Article.technology_id == tech_id,
-                                            Article.published_at >= cutoff)
-                      .order_by(Article.score.desc()).limit(2))
-    return [{"title": a.title, "url": a.url} for a in rows]
+    out: dict[int, list[dict]] = {i: [] for i in tech_ids}
+    rows = db.scalars(select(Article).where(Article.source == "devto", Article.technology_id.in_(tech_ids),
+                                            Article.published_at >= cutoff).order_by(Article.score.desc()))
+    for a in rows:
+        if len(out[a.technology_id]) < 2:
+            out[a.technology_id].append({"title": a.title, "url": a.url})
+    return out
 
 
 def analyze(db: Session, known: dict[int, dict], category: str | None = None, limit: int = 8) -> dict:
     """`known` maps tech_id -> {"source": "manual"|"github"|"both", "repos": int|None}."""
     techs = {t.id: t for t in db.scalars(select(Technology))}
-    day = db.scalar(select(func.max(TechScore.computed_on)))
-    scores = {s.technology_id: s for s in db.scalars(select(TechScore).where(TechScore.computed_on == day))} if day else {}
+    latest_day = select(func.max(TechScore.computed_on)).scalar_subquery()    # one query for the newest scores
+    scores = {s.technology_id: s for s in db.scalars(select(TechScore).where(TechScore.computed_on == latest_day))}
 
     known_out = [{"slug": techs[i].slug, "name": techs[i].name, "category": techs[i].category,
                   "devintel_score": scores[i].devintel_score if i in scores else None,
@@ -104,6 +111,7 @@ def analyze(db: Session, known: dict[int, dict], category: str | None = None, li
                      "related_to": [techs[k].name for _, k in related], "_id": i})
     recs.sort(key=lambda r: r["priority"], reverse=True)
     recs = recs[:limit]
+    starters = _starters(db, [r["_id"] for r in recs]) if recs else {}
     for r in recs:
-        r["starters"] = _starters(db, r.pop("_id"))
+        r["starters"] = starters[r.pop("_id")]
     return {"known": known_out, "coverage": coverage, "recommendations": recs, "note": None}

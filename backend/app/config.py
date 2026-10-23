@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     session_secret: str | None = None        # long random string; signs the login cookie
     public_base_url: str | None = None       # e.g. https://devintel.example.com (needed behind a proxy)
     cookie_secure: bool = False              # set true when served over HTTPS
+    cache_seconds: float = 120               # how long read-only answers are reused (0 = off)
     admin_emails: str | None = None          # comma-separated Google emails that become admins at login
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")

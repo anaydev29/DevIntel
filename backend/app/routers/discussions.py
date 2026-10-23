@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, literal, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -63,37 +63,35 @@ def clean_body(body: str) -> str:
     return body
 
 
-def _build(db: Session, thread: Thread | None, kind: str, ref: str, me: User | None) -> DiscussionOut:
-    if thread is None:
-        return DiscussionOut(kind=kind, ref=ref, total=0, comments=[])
-    rows = db.execute(select(Comment, User).join(User, User.id == Comment.author_id)
-                      .where(Comment.thread_id == thread.id).order_by(Comment.created_at)).all()
-    ids = [c.id for c, _ in rows]
-    scores = dict(db.execute(select(CommentVote.comment_id, func.count()).where(CommentVote.comment_id.in_(ids))
-                             .group_by(CommentVote.comment_id)).all()) if ids else {}
-    mine_votes = set(db.scalars(select(CommentVote.comment_id).where(
-        CommentVote.comment_id.in_(ids), CommentVote.user_id == me.id))) if (ids and me) else set()
+def _build(db: Session, kind: str, ref: str, me: User | None) -> DiscussionOut:
+    """One query returns every comment with its author, its vote count and whether the viewer voted for it."""
+    score_col = select(func.count(CommentVote.id)).where(CommentVote.comment_id == Comment.id).correlate(Comment).scalar_subquery()
+    voted_col = (select(CommentVote.id).where(CommentVote.comment_id == Comment.id, CommentVote.user_id == me.id).exists()
+                 if me else literal(False))
+    rows = db.execute(select(Comment, User, score_col, voted_col.label("voted"))
+                      .join(User, User.id == Comment.author_id).join(Thread, Thread.id == Comment.thread_id)
+                      .where(Thread.kind == kind, Thread.ref == ref).order_by(Comment.created_at)).all()
 
-    def out(c: Comment, author: User, replies: list[CommentOut]) -> CommentOut:
+    def out(c: Comment, author: User, score: int, voted, replies: list[CommentOut]) -> CommentOut:
         shown = c.status == "visible"
         return CommentOut(
             id=c.id, author=CommentAuthor(name=public_name(author), initial=public_name(author)[0].upper()) if shown else None,
             body=c.body if shown else PLACEHOLDER[c.status], status=c.status, created_at=c.created_at,
-            edited_at=c.edited_at, score=scores.get(c.id, 0), voted=c.id in mine_votes,
+            edited_at=c.edited_at, score=score or 0, voted=bool(voted),
             mine=bool(me and c.author_id == me.id), replies=replies)
 
     children: dict[int, list[CommentOut]] = {}
-    for c, author in rows:
+    for c, author, score, voted in rows:
         if c.parent_id and c.status == "visible":
-            children.setdefault(c.parent_id, []).append(out(c, author, []))
+            children.setdefault(c.parent_id, []).append(out(c, author, score, voted, []))
     top = []
-    for c, author in rows:
+    for c, author, score, voted in rows:
         if c.parent_id:
             continue
         replies = children.get(c.id, [])
         if c.status != "visible" and not replies:
             continue                      # removed comments vanish unless they have replies to hang on
-        top.append(out(c, author, replies))
+        top.append(out(c, author, score, voted, replies))
     total = sum(1 + len(c.replies) for c in top if c.status == "visible") + sum(len(c.replies) for c in top if c.status != "visible")
     return DiscussionOut(kind=kind, ref=ref, total=total, comments=top)
 
@@ -101,8 +99,7 @@ def _build(db: Session, thread: Thread | None, kind: str, ref: str, me: User | N
 @router.get("", response_model=DiscussionOut)
 def get_discussion(kind: str, ref: str, db: Session = Depends(get_db), me: User | None = Depends(current_user)):
     ref = canonical_ref(db, kind, ref)
-    thread = db.scalar(select(Thread).where(Thread.kind == kind, Thread.ref == ref))
-    return _build(db, thread, kind, ref, me)
+    return _build(db, kind, ref, me)
 
 
 @router.get("/counts", response_model=dict[str, int])
@@ -144,7 +141,7 @@ def post_comment(body: CommentIn, db: Session = Depends(get_db), me: User = Depe
         parent_id = parent.parent_id or parent.id     # replies to replies attach to the top-level comment
     db.add(Comment(thread_id=thread.id, parent_id=parent_id, author_id=me.id, body=text))
     db.commit()
-    return _build(db, thread, body.kind, ref, me)
+    return _build(db, body.kind, ref, me)
 
 
 def _own_visible_comment(db: Session, comment_id: int, me: User) -> Comment:
@@ -158,7 +155,7 @@ def _own_visible_comment(db: Session, comment_id: int, me: User) -> Comment:
 
 def _thread_view(db: Session, c: Comment, me: User) -> DiscussionOut:
     thread = db.get(Thread, c.thread_id)
-    return _build(db, thread, thread.kind, thread.ref, me)
+    return _build(db, thread.kind, thread.ref, me)
 
 
 @router.put("/comments/{comment_id}", response_model=DiscussionOut)

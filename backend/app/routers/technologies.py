@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.cache import cached
 from app.database import get_db
 from app.models import MetricSnapshot, Source, TechScore, Technology
 from app.normalize import resolve_technology
@@ -13,6 +14,7 @@ router = APIRouter(prefix="/technologies", tags=["technologies"])
 
 
 @router.get("", response_model=list[TechnologyOut])
+@cached()
 def list_technologies(q: str | None = None, category: str | None = None,
                       limit: int = Query(50, le=200), offset: int = 0,
                       db: Session = Depends(get_db)):
@@ -25,18 +27,18 @@ def list_technologies(q: str | None = None, category: str | None = None,
 
 
 @router.get("/{name}", response_model=TechnologyDetail)
+@cached()
 def get_technology(name: str, db: Session = Depends(get_db)):
     tech = resolve_technology(db, name)  # accepts slug or alias, e.g. "reactjs"
     if not tech:
         raise HTTPException(404, f"Technology '{name}' not found")
 
-    latest_day = db.scalar(select(func.max(MetricSnapshot.captured_on))
-                           .where(MetricSnapshot.technology_id == tech.id))
+    # newest value of each metric from the last 7 days, in one query (sources may be collected on different days)
     latest: dict[str, float] = {}
-    if latest_day:
-        rows = db.execute(select(MetricSnapshot.metric, MetricSnapshot.value).where(
-            MetricSnapshot.technology_id == tech.id, MetricSnapshot.captured_on == latest_day))
-        latest = {m: v for m, v in rows}
+    for metric, value in db.execute(select(MetricSnapshot.metric, MetricSnapshot.value).where(
+            MetricSnapshot.technology_id == tech.id, MetricSnapshot.captured_on >= date.today() - timedelta(days=7)
+    ).order_by(MetricSnapshot.captured_on)):
+        latest[metric] = value
     score = db.scalar(select(TechScore).where(TechScore.technology_id == tech.id)
                       .order_by(TechScore.computed_on.desc()).limit(1))
     return TechnologyDetail(slug=tech.slug, name=tech.name, category=tech.category,
@@ -48,6 +50,7 @@ def get_technology(name: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{name}/metrics", response_model=list[MetricPoint])
+@cached()
 def get_metrics(name: str, metric: str | None = None, days: int = Query(90, le=730),
                 db: Session = Depends(get_db)):
     tech = resolve_technology(db, name)
