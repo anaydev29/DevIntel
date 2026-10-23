@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Article, Comment, CommentReport, CommentVote, Thread, TrendingRepo, User
 from app.normalize import resolve_technology
-from app.routers.auth import current_user, require_user
+from app.modlib import counting_reports
+from app.routers.auth import current_user, require_active_user, require_user
 from app.schemas import (CommentAuthor, CommentEdit, CommentIn, CommentOut, DiscussionOut, ReportIn, VoteIn,
                          VoteOut)
 
@@ -22,8 +23,8 @@ KINDS = {"technology", "article", "repo"}
 MAX_BODY = 2000
 MAX_LINKS = 2
 MAX_PER_HOUR = 10
-HIDE_AFTER_REPORTS = 3
-PLACEHOLDER = {"deleted": "[deleted]", "hidden": "[hidden while moderators review a report]"}
+HIDE_AFTER_REPORTS = 3        # reports from accounts older than a day; moderators can always undo it
+PLACEHOLDER = {"deleted": "[deleted]", "hidden": "[hidden while moderators review a report]", "removed": "[removed by a moderator]"}
 
 
 def public_name(user: User) -> str:
@@ -117,7 +118,7 @@ def counts(kind: str, refs: str = Query(..., description="comma separated refere
 
 
 @router.post("/comments", response_model=DiscussionOut, status_code=201)
-def post_comment(body: CommentIn, db: Session = Depends(get_db), me: User = Depends(require_user)):
+def post_comment(body: CommentIn, db: Session = Depends(get_db), me: User = Depends(require_active_user)):
     ref = canonical_ref(db, body.kind, body.ref)
     text = clean_body(body.body)
     cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -161,7 +162,7 @@ def _thread_view(db: Session, c: Comment, me: User) -> DiscussionOut:
 
 
 @router.put("/comments/{comment_id}", response_model=DiscussionOut)
-def edit_comment(comment_id: int, body: CommentEdit, db: Session = Depends(get_db), me: User = Depends(require_user)):
+def edit_comment(comment_id: int, body: CommentEdit, db: Session = Depends(get_db), me: User = Depends(require_active_user)):
     c = _own_visible_comment(db, comment_id, me)
     c.body, c.edited_at = clean_body(body.body), datetime.now(timezone.utc)
     db.commit()
@@ -184,7 +185,7 @@ def _visible_or_404(db: Session, comment_id: int) -> Comment:
 
 
 @router.put("/comments/{comment_id}/vote", response_model=VoteOut)
-def vote(comment_id: int, body: VoteIn, db: Session = Depends(get_db), me: User = Depends(require_user)):
+def vote(comment_id: int, body: VoteIn, db: Session = Depends(get_db), me: User = Depends(require_active_user)):
     c = _visible_or_404(db, comment_id)
     if c.author_id == me.id:
         raise HTTPException(422, "You cannot vote on your own comment")
@@ -198,13 +199,13 @@ def vote(comment_id: int, body: VoteIn, db: Session = Depends(get_db), me: User 
 
 
 @router.post("/comments/{comment_id}/report", status_code=204)
-def report(comment_id: int, body: ReportIn, db: Session = Depends(get_db), me: User = Depends(require_user)):
+def report(comment_id: int, body: ReportIn, db: Session = Depends(get_db), me: User = Depends(require_active_user)):
     c = _visible_or_404(db, comment_id)
     if c.author_id == me.id:
         raise HTTPException(422, "You cannot report your own comment")
     if not db.scalar(select(CommentReport.id).where(CommentReport.comment_id == c.id, CommentReport.reporter_id == me.id)):
         db.add(CommentReport(comment_id=c.id, reporter_id=me.id, reason=(body.reason.strip() or "other")[:300]))
         db.flush()
-        if db.scalar(select(func.count()).select_from(CommentReport).where(CommentReport.comment_id == c.id)) >= HIDE_AFTER_REPORTS:
-            c.status = "hidden"           # held back until a moderator reviews it (Phase 3)
+        if counting_reports(db, c.id) >= HIDE_AFTER_REPORTS:
+            c.status = "hidden"           # held back until a moderator reviews it
         db.commit()

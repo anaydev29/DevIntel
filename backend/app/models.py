@@ -228,3 +228,27 @@ class CommentReport(Base):
     reporter_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     reason: Mapped[str] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class UserBan(Base):
+    """A banned user can still read everything but cannot post, vote, edit or report."""
+    __tablename__ = "user_bans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    reason: Mapped[str | None] = mapped_column(String(300))
+    banned_by: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ModerationAction(Base):
+    """Audit log: every restore, removal, ban, unban and role change. Ids are plain integers so the log survives deletions."""
+    __tablename__ = "moderation_actions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    moderator_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(20))        # restore / remove / ban / unban / promote / demote
+    comment_id: Mapped[int | None] = mapped_column(Integer, index=True)
+    target_user_id: Mapped[int | None] = mapped_column(Integer)
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

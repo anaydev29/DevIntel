@@ -9,7 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, compare, discussions, feed, me, meta, rankings, skills, technologies
+from app.routers import auth, compare, discussions, feed, me, meta, moderation, rankings, skills, technologies
 
 
 @asynccontextmanager
@@ -32,6 +32,7 @@ app.include_router(skills.router)
 app.include_router(auth.router)
 app.include_router(me.router)
 app.include_router(discussions.router)
+app.include_router(moderation.router)
 
 # Production frontend (React build) served from the same origin as the API, so no CORS setup is needed.
 # During development run `npm run dev` in /frontend instead (it proxies API calls here).

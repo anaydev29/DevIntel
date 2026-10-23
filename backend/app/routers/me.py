@@ -1,11 +1,12 @@
 """Things a signed-in user can save: GitHub username, skills, watchlist. Also account deletion."""
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.github_profile import USERNAME_RE
-from app.models import Comment, CommentReport, CommentVote, TechScore, Technology, User, UserSkill, WatchlistItem
+from app.models import (Comment, CommentReport, CommentVote, ModerationAction, TechScore, Technology, User, UserBan,
+                        UserSkill, WatchlistItem)
 from app.normalize import resolve_technology
 from app.routers.auth import require_user, user_out
 from app.schemas import ProfileOut, ProfileUpdate, SkillsOut, SkillsUpdate, WatchItemOut
@@ -103,6 +104,8 @@ def delete_account(request: Request, user: User = Depends(require_user), db: Ses
         db.execute(delete(CommentVote).where(CommentVote.comment_id.in_(gone)))
         db.execute(delete(CommentReport).where(CommentReport.comment_id.in_(gone)))
         db.execute(delete(Comment).where(Comment.id.in_(gone)))
+    db.execute(delete(UserBan).where(UserBan.user_id == user.id))
+    db.execute(update(ModerationAction).where(ModerationAction.moderator_id == user.id).values(moderator_id=None))
     db.delete(user)
     db.commit()
     request.session.clear()

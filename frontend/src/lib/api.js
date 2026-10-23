@@ -61,3 +61,11 @@ export const editComment = (id, body) => send('PUT', `/discussions/comments/${id
 export const deleteComment = (id) => send('DELETE', `/discussions/comments/${id}`)
 export const voteComment = (id, voted) => send('PUT', `/discussions/comments/${id}/vote`, { voted })
 export const reportComment = (id, reason) => send('POST', `/discussions/comments/${id}/report`, { reason })
+
+export const modQueue = () => get('/moderation/queue')
+export const modLog = () => get('/moderation/log?limit=30')
+export const modAction = (id, action, note) => send('POST', `/moderation/comments/${id}/action`, { action, note })
+export const modBan = (userId, reason) => send('POST', `/moderation/users/${userId}/ban`, { reason })
+export const modUnban = (userId) => send('DELETE', `/moderation/users/${userId}/ban`)
+export const adminUsers = () => get('/moderation/users')
+export const adminSetRole = (userId, role) => send('PUT', `/moderation/users/${userId}/role`, { role })

@@ -21,6 +21,7 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 | **Skill gap** | Pick the technologies you know and/or enter a GitHub username. DevIntel reads your public repositories (main language and topics), then ranks what to learn next by demand, momentum and how well each technology fits your stack, with starter articles. |
 | **My profile** | Sign in with Google to save your skills (they pre-fill the Skill gap tab), keep a GitHub username, and build a watchlist of technologies. Browsing never needs an account, and you can delete your account at any time. |
 | **Discussions** | Every technology, blog post, news item and repository has a discussion: comments, replies, upvotes and a report button. Anyone can read; signing in is needed to write. | 
+| **Moderation** | Visible only to moderators and admins: a queue of reported comments (keep, remove or ban the author), an audit log of every decision, and, for admins, a People list to appoint moderators. |
 | **Compare** | Pick two technologies (for example FastAPI vs Django) and see a side-by-side summary, every signal with the leader highlighted, and a score-over-time chart. |
 | **Blogs** | The most popular dev.to articles of the last two weeks, filterable by technology. |
 | **News** | The current Hacker News front page. |
@@ -91,7 +92,7 @@ GitHub Actions (daily)          Supabase PostgreSQL          Browser
 
 ### Database tables
 
-`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`
+`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`, `user_bans`, `moderation_actions`
 
 ## Project structure
 
@@ -102,9 +103,9 @@ backend/
     models.py  database.py  config.py  schemas.py  main.py
     seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos
-    routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions
+    routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (50 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (59 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -183,6 +184,8 @@ pytest -q
 | `GET/PUT /me/profile`, `PUT /me/skills`, `PUT/DELETE /me/watchlist/{name}`, `DELETE /me` | Saved profile, skills, watchlist and account deletion (sign-in required) |
 | `GET /discussions?kind=&ref=`, `GET /discussions/counts` | Read a discussion, or comment counts for a list of items (public) |
 | `POST /discussions/comments`, `PUT/DELETE /discussions/comments/{id}`, `PUT .../vote`, `POST .../report` | Write, edit, delete, upvote and report comments (sign-in required) |
+| `GET /moderation/queue`, `/moderation/log`, `POST /moderation/comments/{id}/action`, `POST/DELETE /moderation/users/{id}/ban` | Moderator tools (moderators and admins only) |
+| `GET /moderation/users`, `PUT /moderation/users/{id}/role` | Appoint moderators (admins only) |
 | `GET /categories`, `/pipeline/runs`, `/health` | Metadata, freshness log, health check |
 
 ## Google login setup (optional)
@@ -211,9 +214,16 @@ In production set `PUBLIC_BASE_URL=https://your-domain` and `COOKIE_SECURE=true`
 
 **Privacy:** the app stores only your Google id, email, name and picture, plus the skills, GitHub username and watchlist you choose to save. It never sees your Google password. "Delete my account" removes everything.
 
-## Discussion rules built into the code
+## Discussion rules and moderation
 
-Plain text only (nothing a user types is ever run as HTML), 2,000 characters, at most 2 links per comment, 10 comments per hour per user, no identical repeat posts, replies one level deep. Public names are shortened to "First L." and email addresses are never shown. A comment is hidden automatically after 3 reports from different users. Users can edit and delete their own comments, and deleting an account removes its comments.
+Plain text only (nothing a user types is ever run as HTML), 2,000 characters, at most 2 links per comment, 10 comments per hour per user, no identical repeat posts, replies one level deep. Public names are shortened to "First L." and email addresses are never shown to other users.
+
+- **Reports:** a comment reported by 3 different accounts that are more than a day old is hidden automatically. Reports from brand-new accounts are recorded and shown to moderators but do not trigger the hide, so fresh accounts cannot silence people.
+- **Moderators** see a queue of reported comments and can keep one (shows it again), remove it, or ban its author. A decision closes the open reports, so a restored comment is not hidden again by old reports.
+- **Bans:** a banned user can read but cannot post, edit, vote or report, and can still delete their own comments and account.
+- **Audit log:** every restore, removal, ban, unban and role change is recorded with who did it.
+- **Roles:** the admin is set only through `ADMIN_EMAILS` in the server settings (a comma-separated list of Google emails; the role is applied the next time that person signs in). Admins appoint moderators from the Moderation tab. Moderators cannot ban other moderators or admins.
+- **Pages:** "Community guidelines" and "Privacy" are linked in the footer. Add the project contact email to the privacy page before launch.
 
 ## Daily automation
 
@@ -231,7 +241,7 @@ Setup notes:
 - **GitHub has no official trending API.** "Trending repos" are the most-starred repositories created in the last 7 days, which is an approximation of GitHub's own page.
 - **Skill detection is shallow.** GitHub detection uses each repository's main language and topics only, so it misses libraries that are not listed as topics. Picking skills by hand fills the gap.
 - **Name ambiguity.** Words like "Go" and "Swift" are ambiguous in Hacker News titles. Overrides reduce the noise, but some remains.
-- **Moderation is basic for now.** Reported comments are hidden automatically after 3 reports, but there is no moderator screen yet to restore or remove them (planned next).
+- **Moderation is manual.** Moderators have to check the queue; there are no notifications yet.
 - **Sign-in is limited while the Google app is in testing.** Only listed test users can sign in until the app is published.
 - **Hiring signal is approximate.** It counts keyword matches in one month's "Who is hiring?" thread. "Go" is counted only when written "golang", so it is under-counted, and the thread skews toward startups and the US.
 - **Bias.** Hacker News skews toward startups and the US, and Stack Overflow question counts favor older technologies. That is why growth is shown next to size everywhere.
@@ -249,7 +259,7 @@ Setup notes:
 - [x] Accounts: Google sign-in, profile, saved skills, watchlist
 - [x] Discussions on technologies, blogs, news and repos (replies, upvotes, reports)
 - [ ] Free topic posts (the data model already supports them; the screen is not built yet)
-- [ ] Moderation: roles, hide and delete tools, rate limits, community guidelines
+- [x] Moderation: roles, report queue, bans, audit log, community guidelines and privacy pages
 - [ ] Backtest of the emerging flag, then threshold tuning
 - [ ] Public deployment with a live link
 

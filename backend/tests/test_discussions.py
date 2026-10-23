@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -35,7 +35,10 @@ def client(db):
 
 
 def user(db, n, name):
-    return upsert_google_user(db, {"sub": f"g{n}", "email": f"u{n}@example.com", "name": name})
+    u = upsert_google_user(db, {"sub": f"g{n}", "email": f"u{n}@example.com", "name": name})
+    u.created_at = datetime.now(timezone.utc) - timedelta(days=2)      # older than a day, so their reports count
+    db.commit()
+    return u
 
 
 def act_as(u):

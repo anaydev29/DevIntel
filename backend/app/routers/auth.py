@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import User
+from app.models import User, UserBan
 from app.schemas import MeOut, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -50,6 +50,28 @@ def require_user(user: User | None = Depends(current_user)) -> User:
     return user
 
 
+def is_banned(db: Session, user: User) -> bool:
+    return db.scalar(select(UserBan.id).where(UserBan.user_id == user.id)) is not None
+
+
+def require_active_user(user: User = Depends(require_user), db: Session = Depends(get_db)) -> User:
+    if is_banned(db, user):
+        raise HTTPException(403, "Your account is restricted: you can read DevIntel but not post, vote or report.")
+    return user
+
+
+def require_moderator(user: User = Depends(require_user)) -> User:
+    if user.role not in ("moderator", "admin"):
+        raise HTTPException(403, "Moderators only")
+    return user
+
+
+def require_admin(user: User = Depends(require_user)) -> User:
+    if user.role != "admin":
+        raise HTTPException(403, "Admins only")
+    return user
+
+
 def upsert_google_user(db: Session, info: dict) -> User:
     """Find the user by Google's stable id (never by email) or create them; refresh basic details."""
     user = db.scalar(select(User).where(User.google_sub == info["sub"]))
@@ -60,6 +82,11 @@ def upsert_google_user(db: Session, info: dict) -> User:
     user.name = info.get("name")
     user.avatar_url = info.get("picture")
     user.last_login_at = datetime.now(timezone.utc)
+    # ADMIN_EMAILS in the server settings is the only way to become an admin
+    if user.email.lower() in settings.admin_email_set:
+        user.role = "admin"
+    elif user.role == "admin":
+        user.role = "user"
     db.commit()
     return user
 
@@ -95,9 +122,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=MeOut)
-def me(user: User | None = Depends(current_user)):
+def me(user: User | None = Depends(current_user), db: Session = Depends(get_db)):
     return MeOut(authenticated=user is not None, login_enabled=google_enabled(),
-                 user=user_out(user) if user else None)
+                 user=user_out(user) if user else None, banned=bool(user and is_banned(db, user)))
 
 
 @router.post("/logout", status_code=204)

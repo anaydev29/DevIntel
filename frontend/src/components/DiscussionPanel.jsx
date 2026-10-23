@@ -95,7 +95,7 @@ function Comment({ c, depth, actions, state, setState }) {
 }
 
 export default function DiscussionPanel({ kind, refKey, onTotal }) {
-  const { authenticated, loginEnabled } = useAuth()
+  const { authenticated, loginEnabled, banned } = useAuth()
   const [state, setState] = useState(null)
   const [error, setError] = useState(false)
 
@@ -125,14 +125,16 @@ export default function DiscussionPanel({ kind, refKey, onTotal }) {
 
   return (
     <div className="flex flex-col gap-3">
-      {authenticated ? (
+      {authenticated && banned ? (
+        <p className="border-[3px] border-ink bg-hot p-3 text-sm font-bold">Your account is restricted: you can read, but not post, vote or report.</p>
+      ) : authenticated ? (
         <Composer placeholder="Join the discussion" submitLabel="Post comment" onSubmit={async (t) => setState(await actions.post(t, null))} />
       ) : (
         <p className="border-[3px] border-dashed border-ink p-3 text-sm">
           {loginEnabled ? <><a href="/auth/google/login" className="font-bold underline">Sign in with Google</a> to join the discussion.</> : 'Sign-in is not set up on this server.'}
         </p>
       )}
-      {authenticated && <p className="text-xs">Your first name and last initial are shown with your comments. Be kind; reported comments can be hidden.</p>}
+      {authenticated && !banned && <p className="text-xs">Your first name and last initial are shown with your comments. Please follow the community guidelines (linked at the bottom of the page); reported comments can be hidden.</p>}
       {state.comments.length === 0 ? (
         <p className="border-[3px] border-dashed border-ink p-3">No comments yet. Start the discussion.</p>
       ) : (

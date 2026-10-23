@@ -4,7 +4,7 @@ import { authMe, loadProfile, signOutRequest } from './api'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [state, setState] = useState({ loading: true, user: null, loginEnabled: false })
+  const [state, setState] = useState({ loading: true, user: null, loginEnabled: false, banned: false })
   const [profile, setProfile] = useState(null)
 
   const refreshProfile = useCallback(async () => setProfile(await loadProfile()), [])
@@ -12,7 +12,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     authMe()
       .then(async (m) => {
-        setState({ loading: false, user: m.user, loginEnabled: m.login_enabled })
+        setState({ loading: false, user: m.user, loginEnabled: m.login_enabled, banned: m.banned })
         if (m.authenticated) setProfile(await loadProfile())
       })
       .catch(() => setState((s) => ({ ...s, loading: false })))

@@ -158,6 +158,7 @@ class MeOut(BaseModel):
     authenticated: bool
     login_enabled: bool
     user: UserOut | None = None
+    banned: bool = False
 
 
 class WatchItemOut(BaseModel):
@@ -235,3 +236,54 @@ class DiscussionOut(BaseModel):
 class VoteOut(BaseModel):
     score: int
     voted: bool
+
+
+class ReportInfo(BaseModel):
+    reason: str
+    reporter: str
+    created_at: datetime
+
+
+class CaseOut(BaseModel):
+    comment_id: int
+    thread_kind: str
+    thread_ref: str
+    body: str
+    status: str
+    created_at: datetime
+    author_id: int
+    author_name: str
+    author_banned: bool
+    reports: list[ReportInfo]
+
+
+class ModActionIn(BaseModel):
+    action: str            # restore / remove
+    note: str | None = None
+
+
+class BanIn(BaseModel):
+    reason: str | None = None
+
+
+class RoleIn(BaseModel):
+    role: str              # moderator / user
+
+
+class LogOut(BaseModel):
+    id: int
+    moderator: str
+    action: str
+    comment_id: int | None
+    target_user_id: int | None
+    note: str | None
+    created_at: datetime
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+    banned: bool
+    created_at: datetime
