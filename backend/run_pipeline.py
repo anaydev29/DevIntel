@@ -7,6 +7,7 @@
 import argparse
 
 from app.analysis import compute_scores
+from app.collectors.downloads import NpmDownloadsCollector, PyPIDownloadsCollector
 from app.collectors.github import GitHubCollector
 from app.collectors.devto import DevToCollector
 from app.collectors.hackernews import HackerNewsCollector
@@ -20,7 +21,7 @@ from app.seed import seed
 COLLECTORS = {"github": GitHubCollector, "stackoverflow": StackOverflowCollector,
               "hackernews": HackerNewsCollector, "devto": DevToCollector,
               "hn_frontpage": HackerNewsFrontPageCollector, "github_trending": TrendingReposCollector,
-              "hn_hiring": HackerNewsHiringCollector}
+              "hn_hiring": HackerNewsHiringCollector, "npm": NpmDownloadsCollector, "pypi": PyPIDownloadsCollector}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

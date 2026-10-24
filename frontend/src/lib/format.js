@@ -10,6 +10,8 @@ export const METRIC_LABELS = {
   'hackernews.points_30d': 'Hacker News points, last 30 days',
   'hiring.mentions': 'Job posts mentioning it (latest HN hiring thread)',
   'hiring.share_pct': 'Share of HN job posts mentioning it',
+  'npm.downloads_week': 'npm downloads, last week',
+  'pypi.downloads_week': 'PyPI downloads, last week',
 }
 
 // Percent metrics end in _pct; everything else is a count

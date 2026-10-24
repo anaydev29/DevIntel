@@ -11,9 +11,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     authMe()
-      .then(async (m) => {
+      .then((m) => {
+        // one request carries the user and their saved skills and watchlist
         setState({ loading: false, user: m.user, loginEnabled: m.login_enabled, banned: m.banned })
-        if (m.authenticated) setProfile(await loadProfile())
+        if (m.profile) setProfile(m.profile)
       })
       .catch(() => setState((s) => ({ ...s, loading: false })))
   }, [])

@@ -86,3 +86,5 @@ export const modBan = (userId, reason) => send('POST', `/moderation/users/${user
 export const modUnban = (userId) => send('DELETE', `/moderation/users/${userId}/ban`)
 export const adminUsers = () => get('/moderation/users')
 export const adminSetRole = (userId, role) => send('PUT', `/moderation/users/${userId}/role`, { role })
+
+export const loadBreakdown = () => get('/rankings/breakdown')

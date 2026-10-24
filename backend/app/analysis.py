@@ -22,10 +22,10 @@ from collections import defaultdict
 from datetime import date, timedelta
 from math import ceil
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import MetricSnapshot, TechScore
+from app.models import MetricSnapshot, ScoreComponent, TechScore
 
 SCORE_WEIGHTS = {
     "stackoverflow.questions_30d": 0.25,
@@ -138,6 +138,13 @@ def compute_scores(db: Session, today: date | None = None) -> dict:
         cutoff = sorted(pool.values(), reverse=True)[keep - 1]
         emerging = {t for t, g in pool.items()
                     if g >= cutoff and g >= MIN_GROWTH and positives[t] >= MIN_POSITIVE_SIGNALS}
+
+    # ---- Keep each signal's rank, so the dashboard can explain and re-weight the score ----
+    db.execute(delete(ScoreComponent).where(ScoreComponent.computed_on == today))
+    for metric, by_tech in ranks.items():
+        for tid, rank in by_tech.items():
+            db.add(ScoreComponent(technology_id=tid, computed_on=today, metric=metric, value=latest[metric][tid],
+                                  rank=round(rank, 4), weight=SCORE_WEIGHTS[metric]))
 
     # ---- Save (one row per technology per day; safe to re-run) ----
     for tid, score in scores.items():

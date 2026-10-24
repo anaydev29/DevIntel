@@ -252,3 +252,19 @@ class ModerationAction(Base):
     target_user_id: Mapped[int | None] = mapped_column(Integer)
     note: Mapped[str | None] = mapped_column(String(300))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
+
+
+class ScoreComponent(Base):
+    """How a technology's DevIntel Score was made: for each signal, the raw value, its percentile rank
+    (0 to 1 among all technologies) and the weight it carried that day."""
+    __tablename__ = "score_components"
+    __table_args__ = (UniqueConstraint("technology_id", "computed_on", "metric", name="uq_component_per_day"),
+                      Index("ix_component_day", "computed_on"))
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    technology_id: Mapped[int] = mapped_column(ForeignKey("technologies.id", ondelete="CASCADE"))
+    computed_on: Mapped[date] = mapped_column(Date)
+    metric: Mapped[str] = mapped_column(String(60))
+    value: Mapped[float] = mapped_column(Float)
+    rank: Mapped[float] = mapped_column(Float)
+    weight: Mapped[float] = mapped_column(Float)

@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.cache import cached
 from app.database import get_db
-from app.models import TechScore, Technology
-from app.schemas import RankingItem
+from app.models import ScoreComponent, TechScore, Technology
+from app.schemas import BreakdownOut, BreakdownTech, ComponentOut, RankingItem
 
 router = APIRouter(prefix="/rankings", tags=["rankings"])
 
@@ -41,3 +41,24 @@ def emerging(category: str | None = None, limit: int = Query(20, le=100), db: Se
     """Technologies flagged as emerging, fastest growth first. Empty until enough history exists."""
     rows = sorted(_latest_rows(db, category, True), key=lambda r: r[0].growth_30d or 0, reverse=True)
     return [_item(s, t) for s, t in rows[:limit]]
+
+
+@router.get("/breakdown", response_model=BreakdownOut)
+@cached()
+def breakdown(db: Session = Depends(get_db)):
+    """Every technology's score together with the rank it earned on each signal.
+    The dashboard uses it to explain a score and to re-rank with the user's own weights."""
+    latest_day = select(func.max(TechScore.computed_on)).scalar_subquery()
+    rows = db.execute(select(TechScore, Technology).join(Technology, Technology.id == TechScore.technology_id)
+                      .where(TechScore.computed_on == latest_day)).all()
+    day = rows[0][0].computed_on if rows else None
+    comps: dict[int, dict[str, ComponentOut]] = {}
+    weights: dict[str, float] = {}
+    if day:
+        for c in db.scalars(select(ScoreComponent).where(ScoreComponent.computed_on == day)):
+            comps.setdefault(c.technology_id, {})[c.metric] = ComponentOut(value=c.value, rank=c.rank)
+            weights[c.metric] = c.weight
+    techs = [BreakdownTech(slug=t.slug, name=t.name, category=t.category, devintel_score=s.devintel_score,
+                           growth_30d=s.growth_30d, is_emerging=s.is_emerging, components=comps.get(t.id, {}))
+             for s, t in sorted(rows, key=lambda r: r[0].devintel_score or 0, reverse=True)]
+    return BreakdownOut(computed_on=day, weights=weights, technologies=techs)

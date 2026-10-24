@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { addToWatchlist, loadTechnology, removeFromWatchlist } from '../lib/api'
+import { addToWatchlist, loadBreakdown, loadTechnology, removeFromWatchlist } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import DiscussionPanel from './DiscussionPanel'
 import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
+import { scoreFor } from '../lib/score'
 
 function Sticker({ children, color = 'bg-white' }) {
   return <span className={`border-[3px] border-ink px-3 py-0.5 font-bold shadow-brut-xs ${color}`}>{children}</span>
@@ -12,6 +13,9 @@ export default function DetailDialog({ slug, onClose }) {
   const ref = useRef(null)
   const { authenticated, profile, setProfile } = useAuth()
   const [busy, setBusy] = useState(false)
+  const [breakdown, setBreakdown] = useState(null)
+
+  useEffect(() => { loadBreakdown().then(setBreakdown).catch(() => {}) }, [])
   const [tech, setTech] = useState(null)
   const [failed, setFailed] = useState(false)
 
@@ -28,6 +32,16 @@ export default function DetailDialog({ slug, onClose }) {
   }, [slug])
 
   const growth = tech && growthText(tech.growth_30d)
+  const parts = (() => {
+    const t = breakdown?.technologies.find((x) => x.slug === tech?.slug)
+    if (!t || !Object.keys(t.components).length) return null
+    const total = Object.keys(t.components).reduce((sum, m) => sum + breakdown.weights[m], 0)
+    const rows = Object.entries(t.components).map(([metric, c]) => {
+      const share = breakdown.weights[metric] / total
+      return { metric, value: c.value, rank: c.rank, share, points: share * c.rank * 100 }
+    }).sort((a, b) => b.points - a.points)
+    return { rows, score: scoreFor(t.components, breakdown.weights) }
+  })()
   const watching = !!tech && !!profile?.watchlist.some((w) => w.slug === tech.slug)
 
   async function toggleWatch() {
@@ -71,6 +85,27 @@ export default function DetailDialog({ slug, onClose }) {
                   </div>
                 ))}
             </dl>
+            {parts && (
+              <div className="mt-6">
+                <h3 className="font-display text-xl">How the score is made</h3>
+                <p className="mb-3 text-sm">Each bar shows how this technology ranks against all the others on one signal. Signals with a bigger weight add more points.</p>
+                <ul className="flex flex-col gap-3">
+                  {parts.rows.map((r) => (
+                    <li key={r.metric}>
+                      <div className="flex justify-between gap-3 text-sm font-bold">
+                        <span>{METRIC_LABELS[r.metric] ?? r.metric}: {formatMetric(r.metric, r.value)}</span>
+                        <span>+{r.points.toFixed(1)} points</span>
+                      </div>
+                      <div className="my-1 h-4 border-[3px] border-ink bg-white" role="img" aria-label={`Ahead of ${Math.round(r.rank * 100)} percent of technologies`}>
+                        <div className="h-full border-r-[3px] border-ink bg-sky" style={{ width: `${Math.max(1, r.rank * 100)}%` }} />
+                      </div>
+                      <p className="text-xs">Ahead of {Math.round(r.rank * 100)}% of technologies. This signal counts for {Math.round(r.share * 100)}% of the score.</p>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 border-t-2 border-ink pt-2 font-bold">Total: {parts.score.toFixed(1)} of 100</p>
+              </div>
+            )}
             {tech.aliases.length > 0 && (
               <p className="mt-4 text-sm">Also known as: {tech.aliases.join(', ')}</p>
             )}

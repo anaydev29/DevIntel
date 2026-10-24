@@ -57,7 +57,7 @@ def queries(client, method, path, **kw):
 def test_query_budgets(env):
     client, _, _ = env
     budgets = [("get", "/rankings/trending?limit=100", 1), ("get", "/rankings/emerging", 1), ("get", "/categories", 1),
-               ("get", "/pipeline/runs", 1), ("get", "/feed/news", 1), ("get", "/feed/repos", 1), ("get", "/feed/blogs", 1),
+               ("get", "/pipeline/runs", 1), ("get", "/rankings/breakdown", 2), ("get", "/feed/news", 1), ("get", "/feed/repos", 1), ("get", "/feed/blogs", 1),
                ("get", "/technologies/python", 4), ("get", "/compare?techs=fastapi,django", 5),
                ("get", "/discussions?kind=technology&ref=python", 2)]
     for method, path, budget in budgets:
@@ -114,3 +114,35 @@ def test_static_files_cache_headers(env):
     assert client.get("/").headers["cache-control"] == "no-cache"                   # the page is always rechecked
     asset = next(p for p in (STATIC_DIR / "assets").iterdir() if p.suffix == ".js")
     assert "immutable" in client.get(f"/assets/{asset.name}").headers["cache-control"]   # hashed files are kept for a year
+
+
+def test_signed_in_startup_is_one_request_with_few_queries(env):
+    from starlette.requests import Request
+    from app.profile_data import build_profile
+    from app.routers.auth import current_user, upsert_google_user
+    from app.models import UserBan, WatchlistItem
+    client, engine, session = env
+    user = upsert_google_user(session, {"sub": "g1", "email": "a@example.com", "name": "Ana"})
+    session.add(WatchlistItem(user_id=user.id, technology_id=resolve_technology(session, "python").id))
+    session.commit()
+
+    counter["n"] = 0
+    profile = build_profile(session, user)
+    assert counter["n"] <= 2, f"profile used {counter['n']} queries"          # skills + watchlist (with scores) only
+    assert [w.slug for w in profile.watchlist] == ["python"] and profile.watchlist[0].devintel_score == 90
+
+    # the signed-in user and their ban status come from ONE query
+    request = Request({"type": "http", "headers": [], "session": {"user_id": user.id}})
+    counter["n"] = 0
+    assert current_user(request, session).id == user.id and counter["n"] == 1 and request.state.banned is False
+    session.add(UserBan(user_id=user.id, reason="x")); session.commit()
+    request = Request({"type": "http", "headers": [], "session": {"user_id": user.id}})
+    current_user(request, session)
+    assert request.state.banned is True
+
+    app.dependency_overrides[current_user] = lambda: user
+    body = client.get("/auth/me").json()
+    app.dependency_overrides.pop(current_user)
+    assert body["authenticated"] and body["banned"] is True and body["profile"]["skills"] == []
+    assert [w["slug"] for w in body["profile"]["watchlist"]] == ["python"]
+    assert client.get("/auth/me").json()["profile"] is None                      # anonymous: no profile, no database work

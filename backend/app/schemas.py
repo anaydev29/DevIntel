@@ -159,6 +159,7 @@ class MeOut(BaseModel):
     login_enabled: bool
     user: UserOut | None = None
     banned: bool = False
+    profile: "ProfileOut | None" = None
 
 
 class WatchItemOut(BaseModel):
@@ -287,3 +288,27 @@ class AdminUserOut(BaseModel):
     role: str
     banned: bool
     created_at: datetime
+
+
+class ComponentOut(BaseModel):
+    value: float
+    rank: float            # 0 to 1: share of technologies this one is ahead of on this signal
+
+
+class BreakdownTech(BaseModel):
+    slug: str
+    name: str
+    category: str
+    devintel_score: float | None
+    growth_30d: float | None
+    is_emerging: bool
+    components: dict[str, ComponentOut]
+
+
+class BreakdownOut(BaseModel):
+    computed_on: date | None
+    weights: dict[str, float]          # the default weight of each signal
+    technologies: list[BreakdownTech]
+
+
+MeOut.model_rebuild()

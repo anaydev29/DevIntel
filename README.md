@@ -53,6 +53,8 @@ Everything is computed from daily snapshots stored in the database. The formulas
 - at least 2 of the 3 growth signals are positive (cross-source agreement)
 - its growth is in the top 20% of the eligible technologies
 
+**Explaining and re-weighting the score.** The rank each signal earned is stored for every technology, so the popup can show exactly how a score adds up and the sliders can recompute it in the browser with the same formula. Download counts from npm and PyPI are shown in the popup and in Compare but are deliberately **not** part of the score: they include automated installs and cannot be compared between the two registries. The "Taking off" flag does not change with the sliders.
+
 The thresholds are starting values. The plan is to tune them with a backtest once 30 days of history exist.
 
 ## Data sources
@@ -63,6 +65,7 @@ The thresholds are starting values. The plan is to tune them with a backtest onc
 | Stack Exchange API | Question counts and new questions in the last 30 days per tag | Optional key (raises the daily quota) |
 | Hacker News (Algolia API) | Story mentions and points per technology; the front page; job-post demand from the monthly "Who is hiring?" thread | No key |
 | dev.to API | Popular articles per technology tag | No key |
+| npm and PyPI download statistics | Weekly downloads for technologies whose main package is the technology itself (React, Vue, Angular, Svelte, Next.js, TypeScript, Tailwind CSS on npm; Django, Flask, FastAPI, PyTorch, TensorFlow, LangChain on PyPI) | No key |
 
 Only official public APIs are used, with rate-limit handling and a log of every run.
 
@@ -92,7 +95,7 @@ GitHub Actions (daily)          Supabase PostgreSQL          Browser
 
 ### Database tables
 
-`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`, `user_bans`, `moderation_actions`
+`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`, `user_bans`, `moderation_actions`, `score_components`
 
 ## Project structure
 
@@ -102,10 +105,10 @@ backend/
   app/
     models.py  database.py  config.py  schemas.py  main.py
     seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
-    collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos
+    collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (66 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (73 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -145,7 +148,7 @@ python run_pipeline.py                # all sources, then the analysis (takes a 
 uvicorn app.main:app --reload --reload-dir app
 ```
 
-To run a single source: `python run_pipeline.py --source devto`. Valid sources are `github`, `stackoverflow`, `hackernews`, `hn_hiring`, `devto`, `hn_frontpage` and `github_trending`. You can also limit it to some technologies: `python run_pipeline.py python react`.
+To run a single source: `python run_pipeline.py --source devto`. Valid sources are `github`, `stackoverflow`, `hackernews`, `hn_hiring`, `devto`, `hn_frontpage`, `github_trending`, `npm` and `pypi`. You can also limit it to some technologies: `python run_pipeline.py python react`.
 
 Interactive API docs are at http://127.0.0.1:8000/docs.
 
@@ -171,6 +174,7 @@ pytest -q
 | Endpoint | Description |
 |---|---|
 | `GET /rankings/trending` | Technologies ranked by DevIntel Score (optional `category`, `limit`) |
+| `GET /rankings/breakdown` | Every technology's score with the rank it earned on each signal (powers the popup breakdown and the sliders) |
 | `GET /rankings/emerging` | Technologies flagged as taking off, fastest growth first |
 | `GET /technologies` | List and search (`q`, `category`) |
 | `GET /technologies/{name}` | One technology with latest metrics, score and growth (aliases accepted) |
@@ -180,7 +184,7 @@ pytest -q
 | `GET /feed/blogs` | Popular dev.to articles (`tech`, `days`, `limit`) |
 | `GET /feed/news` | Hacker News front page |
 | `GET /feed/repos` | Trending new repositories (`language`) |
-| `GET /auth/google/login`, `/auth/google/callback`, `GET /auth/me`, `POST /auth/logout` | Google sign-in and the login session |
+| `GET /auth/google/login`, `/auth/google/callback`, `GET /auth/me`, `POST /auth/logout` | Google sign-in and the login session (`/auth/me` also returns the saved skills and watchlist in one request) |
 | `GET/PUT /me/profile`, `PUT /me/skills`, `PUT/DELETE /me/watchlist/{name}`, `DELETE /me` | Saved profile, skills, watchlist and account deletion (sign-in required) |
 | `GET /discussions?kind=&ref=`, `GET /discussions/counts` | Read a discussion, or comment counts for a list of items (public) |
 | `POST /discussions/comments`, `PUT/DELETE /discussions/comments/{id}`, `PUT .../vote`, `POST .../report` | Write, edit, delete, upvote and report comments (sign-in required) |

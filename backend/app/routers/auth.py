@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import User, UserBan
+from app.profile_data import build_profile
 from app.schemas import MeOut, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -40,8 +41,17 @@ def user_out(u: User) -> UserOut:
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User | None:
+    """The signed-in user, found together with their ban status in a single query."""
     user_id = request.session.get("user_id")
-    return db.get(User, user_id) if user_id else None
+    row = db.execute(select(User, UserBan.id).outerjoin(UserBan, UserBan.user_id == User.id)
+                     .where(User.id == user_id)).first() if user_id else None
+    request.state.banned = bool(row and row[1] is not None)
+    return row[0] if row else None
+
+
+def banned_flag(request: Request, db: Session, user: User) -> bool:
+    flag = getattr(request.state, "banned", None)      # already known from current_user, so no extra query
+    return flag if flag is not None else is_banned(db, user)
 
 
 def require_user(user: User | None = Depends(current_user)) -> User:
@@ -54,8 +64,8 @@ def is_banned(db: Session, user: User) -> bool:
     return db.scalar(select(UserBan.id).where(UserBan.user_id == user.id)) is not None
 
 
-def require_active_user(user: User = Depends(require_user), db: Session = Depends(get_db)) -> User:
-    if is_banned(db, user):
+def require_active_user(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)) -> User:
+    if banned_flag(request, db, user):
         raise HTTPException(403, "Your account is restricted: you can read DevIntel but not post, vote or report.")
     return user
 
@@ -122,9 +132,11 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=MeOut)
-def me(user: User | None = Depends(current_user), db: Session = Depends(get_db)):
+def me(request: Request, user: User | None = Depends(current_user), db: Session = Depends(get_db)):
+    """Who is signed in, plus their saved skills and watchlist, in one request."""
     return MeOut(authenticated=user is not None, login_enabled=google_enabled(),
-                 user=user_out(user) if user else None, banned=bool(user and is_banned(db, user)))
+                 user=user_out(user) if user else None, banned=bool(user and banned_flag(request, db, user)),
+                 profile=build_profile(db, user) if user else None)
 
 
 @router.post("/logout", status_code=204)
