@@ -5,6 +5,15 @@ signed, HttpOnly cookie. No passwords are ever handled or stored.
 """
 from datetime import datetime, timezone
 
+import warnings
+
+try:  # Authlib warns that its httpx module will be replaced by httpx2 in the future; nothing we use is affected
+    import authlib.deprecate as _authlib_deprecate
+
+    warnings.filterwarnings("ignore", message="The httpx module is deprecated", category=_authlib_deprecate.AuthlibDeprecationWarning)
+except Exception:  # never let a cosmetic warning filter stop the app
+    pass
+
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request, Response

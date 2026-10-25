@@ -110,7 +110,7 @@ backend/
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, topics, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (80 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (83 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -195,6 +195,17 @@ pytest -q
 | `GET /moderation/queue`, `/moderation/log`, `POST /moderation/comments/{id}/action`, `POST/DELETE /moderation/users/{id}/ban` | Moderator tools (moderators and admins only) |
 | `GET /moderation/users`, `PUT /moderation/users/{id}/role` | Appoint moderators (admins only) |
 | `GET /categories`, `/pipeline/runs`, `/health` | Metadata, freshness log, health check |
+
+## Admin tasks
+
+**See everyone who has signed in** (emails are personal data, so keep this private):
+- In the app, as an admin: **Moderation**, then the **People** section (roles and bans can be changed there).
+- In the terminal, from `backend` with the virtual environment active: `python -m app.list_users`
+- In Supabase: **Table Editor**, table `users`, or the **SQL Editor**: `select id, name, email, role, created_at, last_login_at from users order by created_at desc;`
+
+Do not change roles by editing the table by hand: admins come from `ADMIN_EMAILS`, moderators from the People list.
+
+**Database security:** on PostgreSQL the app turns on Row Level Security for every table at startup. Supabase otherwise exposes tables through a public REST address that anyone holding the (public) anon key can use. The backend is not affected, because it connects as the table owner, which bypasses those rules.
 
 ## Performance
 

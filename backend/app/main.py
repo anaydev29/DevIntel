@@ -9,7 +9,7 @@ from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.database import Base, engine, ensure_indexes
+from app.database import Base, engine, ensure_indexes, ensure_row_level_security
 from app.routers import auth, compare, discussions, feed, me, meta, moderation, topics, rankings, skills, technologies
 
 
@@ -20,6 +20,10 @@ async def lifespan(app: FastAPI):
         ensure_indexes()
     except Exception as exc:  # an index problem must never stop the site from starting
         print(f"warning: could not create indexes: {exc}")
+    try:
+        ensure_row_level_security()
+    except Exception as exc:
+        print(f"warning: could not enable row level security: {exc}")
     yield
 
 
