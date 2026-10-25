@@ -14,7 +14,9 @@ from app.models import Source, Technology
 API = "https://dev.to/api/articles"
 # slug -> dev.to tag, where they differ
 TAG_OVERRIDES = {"nodejs": "node", "postgresql": "postgres", "spring-boot": "springboot",
-                 "vue": "vue", "tailwindcss": "tailwindcss"}
+                 "vue": "vue", "tailwindcss": "tailwindcss",
+                 "csharp": "csharp", "gcp": "googlecloud", "aspnet-core": "dotnet", "react-native": "reactnative",
+                 "huggingface": "huggingface", "scikit-learn": "scikitlearn", "webassembly": "webassembly"}
 
 
 def parse_time(value: str | None) -> datetime | None:

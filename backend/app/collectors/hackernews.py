@@ -30,6 +30,18 @@ QUERY_OVERRIDES = {
     "java": "java programming",
     "spring-boot": "spring boot",
     "tailwindcss": "tailwind css",
+    "r": "R language",
+    "julia": "julia language",
+    "dart": "dart language",
+    "csharp": "C# programming",
+    "rails": "ruby on rails",
+    "express": "express.js",
+    "aws": "aws",
+    "gcp": "google cloud",
+    "bootstrap": "bootstrap css",
+    "zig": "zig language",
+    "lua": "lua language",
+    "git": "git",
 }
 
 

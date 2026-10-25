@@ -41,10 +41,10 @@ def test_collects_two_metrics(db):
     assert vals == {"stackoverflow.total_questions": 2200000, "stackoverflow.questions_30d": 18000}
 
 
-def test_unknown_tag_is_logged_not_fatal(db):
+def test_unknown_tag_is_skipped_with_a_warning(db, caplog):
     run = make_collector(fake_api).run(db, only_slugs=["python", "react"])
-    assert run.status == "partial" and run.error_count == 1
-    assert "react" in run.error_log
+    assert run.status == "success" and run.error_count == 0 and run.records_fetched == 2     # react's tag is missing: skipped, not failed
+    assert "reactjs" in caplog.text                                                             # but the log says which tag to fix
 
 
 def test_quota_exhausted_stops_run(db):

@@ -16,7 +16,7 @@ from app.main import STATIC_DIR, app
 from app.models import Article, MetricSnapshot, TechScore
 from app.collectors.base import get_or_create_source
 from app.normalize import resolve_technology
-from app.seed import seed
+from app.seed import CATALOG, seed
 
 counter = {"n": 0}
 
@@ -96,7 +96,7 @@ def test_errors_are_never_cached(env, monkeypatch):
 def test_responses_are_compressed(env):
     client, _, _ = env
     r = client.get("/technologies?limit=200", headers={"Accept-Encoding": "gzip"})
-    assert r.headers.get("content-encoding") == "gzip" and len(r.json()) == 32
+    assert r.headers.get("content-encoding") == "gzip" and len(r.json()) == len(CATALOG)
 
 
 def test_ensure_indexes_is_idempotent(env):

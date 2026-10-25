@@ -17,7 +17,7 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 
 | Tab | What it does |
 |---|---|
-| **Rankings** | 32 technologies ranked by DevIntel Score (0 to 100), with search, category filters, 30-day growth and a "Taking off" panel for fast-growing technologies. Select a row for all the numbers behind it. |
+| **Rankings** | 87 technologies ranked by DevIntel Score (0 to 100), with search, category filters, 30-day growth and a "Taking off" panel for fast-growing technologies. Select a row for all the numbers behind it. |
 | **Skill gap** | Pick the technologies you know and/or enter a GitHub username. DevIntel reads your public repositories (main language and topics), then ranks what to learn next by demand, momentum and how well each technology fits your stack, with starter articles. |
 | **My profile** | Sign in with Google to save your skills (they pre-fill the Skill gap tab), keep a GitHub username, and build a watchlist of technologies. Browsing never needs an account, and you can delete your account at any time. |
 | **Discussions** | Every technology, blog post, news item and repository has a discussion: comments, replies, upvotes and a report button. Anyone can read; signing in is needed to write. | 
@@ -35,19 +35,20 @@ A data-freshness strip at the top shows when each source was last collected and 
 
 Everything is computed from daily snapshots stored in the database. The formulas are documented at the top of [`backend/app/analysis.py`](backend/app/analysis.py).
 
-**DevIntel Score (0 to 100).** Each technology gets a percentile rank among all technologies on seven signals. The score is the weighted average of those ranks. Ranks are used instead of raw counts so that very large numbers (Python) do not flatten everyone else. If a source has no data for a technology, the remaining weights are re-normalized.
+**DevIntel Score (0 to 100).** Each technology gets a percentile rank among all technologies on eight signals. The score is the weighted average of those ranks. Ranks are used instead of raw counts so that very large numbers (Python) do not flatten everyone else. If a source has no data for a technology, the remaining weights are re-normalized.
 
 | Signal | Weight |
 |---|---|
-| Stack Overflow questions, last 30 days | 25% |
-| Share of Hacker News job posts mentioning it (hiring demand) | 20% |
-| GitHub repositories tagged with the topic | 15% |
-| Stars on the top 10 repositories | 15% |
-| Hacker News stories, last 30 days | 10% |
-| Stack Overflow questions, all time | 10% |
+| Stack Overflow questions, last 30 days | 22% |
+| Share of Hacker News job posts mentioning it (hiring demand) | 18% |
+| GitHub repositories tagged with the topic | 13% |
+| Stars on the top 10 repositories | 13% |
+| Wikipedia page views, last 30 days (public interest) | 12% |
+| Hacker News stories, last 30 days | 9% |
+| Stack Overflow questions, all time | 8% |
 | Hacker News points, last 30 days | 5% |
 
-**30-day growth.** The latest value of three signals (GitHub repository count, Stack Overflow questions, Hacker News stories) is compared with the oldest snapshot inside the last 30 days and scaled to a 30-day rate. It needs at least 7 days of history, so it shows "n/a" at first.
+**30-day growth.** The latest value of three signals (GitHub repository count, Stack Overflow questions, Wikipedia page views, Hacker News stories) is compared with the oldest snapshot inside the last 30 days and scaled to a 30-day rate. It needs at least 7 days of history, so it shows "n/a" at first.
 
 **Taking off (emerging flag).** A technology is flagged only if all of these hold:
 - its score is at least 20, so tiny projects cannot spike the list
@@ -66,6 +67,7 @@ The thresholds are starting values. The plan is to tune them with a backtest onc
 | GitHub Search API | Repository counts, stars and forks per topic; trending repositories | Token (provided automatically in GitHub Actions) |
 | Stack Exchange API | Question counts and new questions in the last 30 days per tag | Optional key (raises the daily quota) |
 | Hacker News (Algolia API) | Story mentions and points per technology; the front page; job-post demand from the monthly "Who is hiring?" thread | No key |
+| Wikimedia page views API | Human views of each technology's English Wikipedia article over the last 30 days (a measure of public interest, not of usage) | No key; requests carry a descriptive User-Agent |
 | dev.to API | Popular articles per technology tag | No key |
 | npm and PyPI download statistics | Weekly downloads for technologies whose main package is the technology itself (React, Vue, Angular, Svelte, Next.js, TypeScript, Tailwind CSS on npm; Django, Flask, FastAPI, PyTorch, TensorFlow, LangChain on PyPI) | No key |
 
@@ -107,10 +109,10 @@ backend/
   app/
     models.py  database.py  config.py  schemas.py  main.py
     seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
-    collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads
+    collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads, wikipedia
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, topics, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (83 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (89 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -145,12 +147,12 @@ STACKEXCHANGE_KEY=
 Create the tables, collect data and start the API:
 
 ```powershell
-python -m app.seed                    # tables + the 32-technology catalog
+python -m app.seed                    # tables + the 87-technology catalog
 python run_pipeline.py                # all sources, then the analysis (takes a few minutes)
 uvicorn app.main:app --reload --reload-dir app
 ```
 
-To run a single source: `python run_pipeline.py --source devto`. Valid sources are `github`, `stackoverflow`, `hackernews`, `hn_hiring`, `devto`, `hn_frontpage`, `github_trending`, `npm` and `pypi`. You can also limit it to some technologies: `python run_pipeline.py python react`.
+To run a single source: `python run_pipeline.py --source devto`. Valid sources are `github`, `stackoverflow`, `hackernews`, `hn_hiring`, `devto`, `hn_frontpage`, `github_trending`, `npm`, `pypi` and `wikipedia`. You can also limit it to some technologies: `python run_pipeline.py python react`.
 
 Interactive API docs are at http://127.0.0.1:8000/docs.
 
@@ -266,6 +268,12 @@ Setup notes:
 - If the password contains characters such as `@`, `/` or `#`, URL-encode them or use a password with letters and numbers only.
 - The workflow is pinned to `ubuntu-24.04` so a change to the `ubuntu-latest` label cannot break it.
 
+## Growing the catalog
+
+The catalog (87 technologies) lives in `backend/app/seed.py`. To add a technology, add one line there (slug, name, category, GitHub topic, Stack Overflow tag, aliases), then add its Wikipedia article title in `collectors/wikipedia.py`. A hiring-thread pattern (`collectors/hn_hiring.py`) is optional. A test checks that every mapping refers to a real technology and that no alias points at two technologies. A wrong Stack Overflow tag or Wikipedia title is skipped with a warning in the log, so find those in the GitHub Actions output.
+
+**Quotas.** A full run makes about 175 Stack Overflow calls, and the anonymous limit is 300 per day. Add a free `STACKEXCHANGE_KEY` (README: environment variables) and the `STACKEXCHANGE_KEY` repository secret, and avoid running the full pipeline many times a day by hand.
+
 ## Known limitations
 
 - **Growth needs history.** Growth and the "Taking off" flag only appear after about 7 days of daily collection, and the thresholds can only be tuned properly after about 30 days.
@@ -274,6 +282,7 @@ Setup notes:
 - **Name ambiguity.** Words like "Go" and "Swift" are ambiguous in Hacker News titles. Overrides reduce the noise, but some remains.
 - **Moderation is manual.** Moderators have to check the queue; there are no notifications yet.
 - **Sign-in is limited while the Google app is in testing.** Only listed test users can sign in until the app is published.
+- **Wikipedia views measure curiosity, not usage.** Linux and Git get many views because everyone looks them up. The signal is one of eight and is ranked against the other technologies.
 - **Hiring signal is approximate.** It counts keyword matches in one month's "Who is hiring?" thread. "Go" is counted only when written "golang", so it is under-counted, and the thread skews toward startups and the US.
 - **Bias.** Hacker News skews toward startups and the US, and Stack Overflow question counts favor older technologies. That is why growth is shown next to size everywhere.
 - **API limits.** Each source has rate limits, and one failing technology never stops a run. Failures are recorded in `pipeline_runs`.

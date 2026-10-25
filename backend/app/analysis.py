@@ -28,18 +28,20 @@ from sqlalchemy.orm import Session
 from app.models import MetricSnapshot, ScoreComponent, TechScore
 
 SCORE_WEIGHTS = {
-    "stackoverflow.questions_30d": 0.25,
-    "hiring.share_pct": 0.20,
-    "github.repo_count": 0.15,
-    "github.top_stars": 0.15,
-    "hackernews.stories_30d": 0.10,
-    "stackoverflow.total_questions": 0.10,
+    "stackoverflow.questions_30d": 0.22,
+    "hiring.share_pct": 0.18,
+    "github.repo_count": 0.13,
+    "github.top_stars": 0.13,
+    "wikipedia.views_30d": 0.12,
+    "hackernews.stories_30d": 0.09,
+    "stackoverflow.total_questions": 0.08,
     "hackernews.points_30d": 0.05,
 }
 GROWTH_WEIGHTS = {
-    "github.repo_count": 0.4,
-    "stackoverflow.questions_30d": 0.4,
-    "hackernews.stories_30d": 0.2,
+    "github.repo_count": 0.35,
+    "stackoverflow.questions_30d": 0.35,
+    "wikipedia.views_30d": 0.15,
+    "hackernews.stories_30d": 0.15,
 }
 TARGET_WINDOW_DAYS = 30
 MIN_HISTORY_DAYS = 7

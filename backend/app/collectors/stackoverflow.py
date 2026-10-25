@@ -5,6 +5,7 @@ Metrics saved daily per technology:
   stackoverflow.questions_30d     new questions tagged in the last 30 days
                                   (this is the growth signal; total_questions barely moves)
 """
+import logging
 import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
@@ -17,6 +18,7 @@ from app.config import settings
 from app.models import Source, Technology
 
 API = "https://api.stackexchange.com/2.3"
+log = logging.getLogger(__name__)
 
 
 class StackOverflowCollector(BaseCollector):
@@ -46,8 +48,9 @@ class StackOverflowCollector(BaseCollector):
 
         info = self._get(f"/tags/{quote(tag, safe='')}/info", {})
         items = info.get("items", [])
-        if not items:
-            raise ValueError(f"tag '{tag}' not found on Stack Overflow")
+        if not items:   # a wrong tag name must not turn the whole daily run yellow; it is logged so it can be fixed
+            log.warning("Stack Overflow tag %r (%s) was not found: check stackoverflow_tag in the catalog", tag, tech.slug)
+            return 0
         save_metric(db, tech.id, source.id, "stackoverflow.total_questions", items[0]["count"])
 
         since = int((datetime.now(timezone.utc) - timedelta(days=30)).timestamp())
