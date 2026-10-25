@@ -22,6 +22,8 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 | **My profile** | Sign in with Google to save your skills (they pre-fill the Skill gap tab), keep a GitHub username, and build a watchlist of technologies. Browsing never needs an account, and you can delete your account at any time. |
 | **Discussions** | Every technology, blog post, news item and repository has a discussion: comments, replies, upvotes and a report button. Anyone can read; signing in is needed to write. | 
 | **Moderation** | Visible only to moderators and admins: a queue of reported comments (keep, remove or ban the author), an audit log of every decision, and, for admins, a People list to appoint moderators. |
+| **Topics** | Anyone signed in can start a discussion (optionally about a technology or about a blog or news item), and everyone can read and reply. Topics have their own links. |
+| **Technology pages** | Each technology has its own page (open any technology, then "Open the full page"): its score and how it is made, related technologies, beginner-friendly articles to learn from, popular repositories, topics and the discussion. |
 | **Compare** | Pick two technologies (for example FastAPI vs Django) and see a side-by-side summary, every signal with the leader highlighted, and a score-over-time chart. |
 | **Blogs** | The most popular dev.to articles of the last two weeks, filterable by technology. |
 | **News** | The current Hacker News front page. |
@@ -95,7 +97,7 @@ GitHub Actions (daily)          Supabase PostgreSQL          Browser
 
 ### Database tables
 
-`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`, `user_bans`, `moderation_actions`, `score_components`
+`technologies`, `technology_aliases`, `sources`, `metric_snapshots`, `repositories`, `pipeline_runs`, `tech_scores`, `articles`, `trending_repos`, `users`, `user_skills`, `watchlist_items`, `threads`, `comments`, `comment_votes`, `comment_reports`, `user_bans`, `moderation_actions`, `score_components`, `topic_meta`
 
 ## Project structure
 
@@ -106,9 +108,9 @@ backend/
     models.py  database.py  config.py  schemas.py  main.py
     seed.py  normalize.py  analysis.py  skillgap.py  github_profile.py
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads
-    routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, moderation
+    routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, topics, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (73 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (80 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -179,6 +181,8 @@ pytest -q
 | `GET /technologies` | List and search (`q`, `category`) |
 | `GET /technologies/{name}` | One technology with latest metrics, score and growth (aliases accepted) |
 | `GET /technologies/{name}/metrics` | Metric history for charts (`metric`, `days`) |
+| `GET /technologies/{name}/page` | Everything for a technology's page: details, related technologies, learning articles, popular repositories |
+| `GET /topics`, `GET /topics/{ref}`, `POST /topics` | List, read and start free topics (starting one needs sign-in) |
 | `GET /compare?techs=fastapi,django` | Side-by-side data for 2 or 3 technologies |
 | `POST /skills/gap` | Skill-gap analysis from `skills` and/or `github_username` (optional `category`) |
 | `GET /feed/blogs` | Popular dev.to articles (`tech`, `days`, `limit`) |
@@ -232,7 +236,7 @@ In production set `PUBLIC_BASE_URL=https://your-domain` and `COOKIE_SECURE=true`
 
 ## Discussion rules and moderation
 
-Plain text only (nothing a user types is ever run as HTML), 2,000 characters, at most 2 links per comment, 10 comments per hour per user, no identical repeat posts, replies one level deep. Public names are shortened to "First L." and email addresses are never shown to other users.
+Plain text only (nothing a user types is ever run as HTML), 2,000 characters, at most 2 links per comment, 10 comments per hour per user, no identical repeat posts, replies one level deep. Topics add a 5 to 120 character title with no links, and at most 5 new topics per user per day. A topic disappears when its opening post is deleted or removed. Public names are shortened to "First L." and email addresses are never shown to other users.
 
 - **Reports:** a comment reported by 3 different accounts that are more than a day old is hidden automatically. Reports from brand-new accounts are recorded and shown to moderators but do not trigger the hide, so fresh accounts cannot silence people.
 - **Moderators** see a queue of reported comments and can keep one (shows it again), remove it, or ban its author. A decision closes the open reports, so a restored comment is not hidden again by old reports.
@@ -271,10 +275,10 @@ Setup notes:
 - [x] Skill-gap analyzer (pick skills or enter a GitHub username, see what to learn next)
 - [ ] Syllabus gap analyzer (map a course syllabus to current technologies)
 - [x] Hiring-demand signal from the monthly "Who is hiring?" threads
-- [ ] Technology detail pages with related technologies and learning resources
+- [x] Technology detail pages with related technologies and learning resources
 - [x] Accounts: Google sign-in, profile, saved skills, watchlist
 - [x] Discussions on technologies, blogs, news and repos (replies, upvotes, reports)
-- [ ] Free topic posts (the data model already supports them; the screen is not built yet)
+- [x] Free topic posts (title, text, optional technology or article, replies and moderation like any comment)
 - [x] Moderation: roles, report queue, bans, audit log, community guidelines and privacy pages
 - [ ] Backtest of the emerging flag, then threshold tuning
 - [ ] Public deployment with a live link

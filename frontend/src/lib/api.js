@@ -88,3 +88,9 @@ export const adminUsers = () => get('/moderation/users')
 export const adminSetRole = (userId, role) => send('PUT', `/moderation/users/${userId}/role`, { role })
 
 export const loadBreakdown = () => get('/rankings/breakdown')
+
+export const loadTechPage = (slug) => get(`/technologies/${encodeURIComponent(slug)}/page`)
+export const loadTopics = (tech, sort = 'active', limit = 30) =>
+  get(`/topics?sort=${sort}&limit=${limit}${tech ? `&tech=${encodeURIComponent(tech)}` : ''}`)
+export const loadTopic = (ref) => get(`/topics/${encodeURIComponent(ref)}`)
+export const createTopic = (payload) => send('POST', '/topics', payload)

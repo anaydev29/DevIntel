@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.github_profile import USERNAME_RE
-from app.models import (Comment, CommentReport, CommentVote, ModerationAction, TechScore, Technology, User, UserBan,
+from app.models import (Comment, CommentReport, CommentVote, ModerationAction, Thread, TopicMeta, TechScore, Technology, User, UserBan,
                         UserSkill, WatchlistItem)
 from app.normalize import resolve_technology
 from app.profile_data import build_profile, skills_of, watchlist_of
@@ -82,13 +82,18 @@ def delete_account(request: Request, user: User = Depends(require_user), db: Ses
     db.execute(delete(WatchlistItem).where(WatchlistItem.user_id == user.id))
     own_ids = list(db.scalars(select(Comment.id).where(Comment.author_id == user.id)))
     reply_ids = list(db.scalars(select(Comment.id).where(Comment.parent_id.in_(own_ids)))) if own_ids else []
-    gone = own_ids + reply_ids                                   # their comments plus replies hanging on them
+    topic_threads = list(db.scalars(select(TopicMeta.thread_id).where(TopicMeta.author_id == user.id)))
+    in_topics = list(db.scalars(select(Comment.id).where(Comment.thread_id.in_(topic_threads)))) if topic_threads else []
+    gone = list(set(own_ids + reply_ids + in_topics))              # their comments, replies hanging on them, and their topics
     db.execute(delete(CommentVote).where(CommentVote.user_id == user.id))
     db.execute(delete(CommentReport).where(CommentReport.reporter_id == user.id))
     if gone:
         db.execute(delete(CommentVote).where(CommentVote.comment_id.in_(gone)))
         db.execute(delete(CommentReport).where(CommentReport.comment_id.in_(gone)))
         db.execute(delete(Comment).where(Comment.id.in_(gone)))
+    if topic_threads:
+        db.execute(delete(TopicMeta).where(TopicMeta.thread_id.in_(topic_threads)))
+        db.execute(delete(Thread).where(Thread.id.in_(topic_threads)))
     db.execute(delete(UserBan).where(UserBan.user_id == user.id))
     db.execute(update(ModerationAction).where(ModerationAction.moderator_id == user.id).values(moderator_id=None))
     db.delete(user)

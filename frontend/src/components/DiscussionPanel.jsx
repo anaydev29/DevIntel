@@ -39,7 +39,7 @@ function Composer({ placeholder, initial = '', submitLabel, onSubmit, onCancel }
   )
 }
 
-function Comment({ c, depth, actions, state, setState }) {
+function Comment({ c, depth, actions, state, setState, originalId }) {
   const { authenticated } = useAuth()
   const gone = c.status !== 'visible'
   const [mode, setMode] = useState(null) // reply / edit / report
@@ -51,6 +51,7 @@ function Comment({ c, depth, actions, state, setState }) {
         <div className="mb-1 flex flex-wrap items-center gap-2 text-sm">
           {c.author && <span className="grid h-6 w-6 place-items-center border-2 border-ink bg-sun font-bold">{c.author.initial}</span>}
           <span className="font-bold">{c.author ? c.author.name : 'Removed'}</span>
+          {c.id === originalId && <span className="border-2 border-ink bg-mint px-1.5 text-xs font-bold">Original post</span>}
           <span>{timeAgo(c.created_at)}{c.edited_at ? ' (edited)' : ''}</span>
         </div>
         {mode === 'edit' ? (
@@ -87,14 +88,14 @@ function Comment({ c, depth, actions, state, setState }) {
       </div>
       {c.replies.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">
-          {c.replies.map((r) => <Comment key={r.id} c={r} depth={1} actions={actions} state={state} setState={setState} />)}
+          {c.replies.map((r) => <Comment key={r.id} c={r} depth={1} actions={actions} state={state} setState={setState} originalId={originalId} />)}
         </ul>
       )}
     </li>
   )
 }
 
-export default function DiscussionPanel({ kind, refKey, onTotal }) {
+export default function DiscussionPanel({ kind, refKey, onTotal, originalId }) {
   const { authenticated, loginEnabled, banned } = useAuth()
   const [state, setState] = useState(null)
   const [error, setError] = useState(false)
@@ -139,7 +140,7 @@ export default function DiscussionPanel({ kind, refKey, onTotal }) {
         <p className="border-[3px] border-dashed border-ink p-3">No comments yet. Start the discussion.</p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {state.comments.map((c) => <Comment key={c.id} c={c} depth={0} actions={actions} state={state} setState={setState} />)}
+          {state.comments.map((c) => <Comment key={c.id} c={c} depth={0} actions={actions} state={state} setState={setState} originalId={originalId} />)}
         </ul>
       )}
     </div>
@@ -147,15 +148,18 @@ export default function DiscussionPanel({ kind, refKey, onTotal }) {
 }
 
 // "Discuss (3)" button that opens the discussion right under a card
-export function DiscussToggle({ kind, refKey, initialCount = 0 }) {
+export function DiscussToggle({ kind, refKey, initialCount = 0, extra = null }) {
   const [open, setOpen] = useState(false)
   const [count, setCount] = useState(initialCount)
   useEffect(() => setCount(initialCount), [initialCount])
   return (
     <div className="mt-3">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`${btn} bg-sun`}>
-        {open ? 'Hide discussion' : `Discuss (${count})`}
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`${btn} bg-sun`}>
+          {open ? 'Hide discussion' : `Discuss (${count})`}
+        </button>
+        {extra}
+      </div>
       {open && <div className="mt-3"><DiscussionPanel kind={kind} refKey={refKey} onTotal={setCount} /></div>}
     </div>
   )

@@ -4,6 +4,7 @@ import { compact, timeAgo } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 import { useCounts } from '../lib/useCounts'
 import { DiscussToggle } from './DiscussionPanel'
+import { newTopicLink } from '../lib/route'
 
 const cardClass = 'border-[3px] border-ink bg-white p-4 shadow-brut-sm'
 
@@ -55,7 +56,8 @@ function ArticleCard({ a, scoreLabel, count = 0 }) {
         )}
         {a.tags.slice(0, 4).map((t) => <Stat key={t} color="bg-lilac">{t}</Stat>)}
       </div>
-      <DiscussToggle kind="article" refKey={String(a.id)} initialCount={count} />
+      <DiscussToggle kind="article" refKey={String(a.id)} initialCount={count}
+        extra={<a href={newTopicLink({ articleId: a.id, about: a.title })} className="press border-2 border-ink bg-white px-2.5 py-0.5 text-sm font-bold hover:bg-sun">Start a topic about this</a>} />
     </li>
   )
 }

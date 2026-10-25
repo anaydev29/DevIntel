@@ -312,3 +312,65 @@ class BreakdownOut(BaseModel):
 
 
 MeOut.model_rebuild()
+
+
+class TopicIn(BaseModel):
+    title: str
+    body: str
+    technology: str | None = None
+    article_id: int | None = None
+
+
+class TopicTech(BaseModel):
+    slug: str
+    name: str
+
+
+class TopicArticle(BaseModel):
+    id: int
+    title: str
+    url: str
+
+
+class TopicOut(BaseModel):
+    ref: str
+    title: str
+    author: CommentAuthor
+    created_at: datetime
+    last_activity: datetime
+    replies: int
+    preview: str
+    first_comment_id: int
+    technology: TopicTech | None
+    article: TopicArticle | None
+
+
+class RelatedTech(BaseModel):
+    slug: str
+    name: str
+    category: str
+    together: int          # recent articles that mention both
+
+
+class LearnArticle(BaseModel):
+    id: int
+    title: str
+    url: str
+    author: str | None
+    score: int
+    reading_time: int | None
+    beginner: bool
+
+
+class RepoLite(BaseModel):
+    full_name: str
+    url: str
+    stars: int
+    language: str | None
+
+
+class TechnologyPageOut(BaseModel):
+    technology: TechnologyDetail
+    related: list[RelatedTech]
+    articles: list[LearnArticle]
+    repos: list[RepoLite]

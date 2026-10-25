@@ -19,7 +19,7 @@ from app.schemas import (CommentAuthor, CommentEdit, CommentIn, CommentOut, Disc
 
 router = APIRouter(prefix="/discussions", tags=["discussions"])
 
-KINDS = {"technology", "article", "repo"}
+KINDS = {"technology", "article", "repo", "general"}
 MAX_BODY = 2000
 MAX_LINKS = 2
 MAX_PER_HOUR = 10
@@ -47,9 +47,20 @@ def canonical_ref(db: Session, kind: str, ref: str) -> str:
         if not ref.isdigit() or not db.get(Article, int(ref)):
             raise HTTPException(404, "Article not found")
         return ref
+    if kind == "general":
+        if not db.scalar(select(Thread.id).where(Thread.kind == "general", Thread.ref == ref)):
+            raise HTTPException(404, "Topic not found")
+        return ref
     if not db.scalar(select(TrendingRepo.id).where(TrendingRepo.full_name == ref).limit(1)):
         raise HTTPException(404, "Repository not found")
     return ref
+
+
+def enforce_rate_limit(db: Session, me: User) -> None:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+    recent = db.scalar(select(func.count()).select_from(Comment).where(Comment.author_id == me.id, Comment.created_at >= cutoff))
+    if recent >= MAX_PER_HOUR:
+        raise HTTPException(429, "You are posting too fast. Please try again later.")
 
 
 def clean_body(body: str) -> str:
@@ -118,10 +129,7 @@ def counts(kind: str, refs: str = Query(..., description="comma separated refere
 def post_comment(body: CommentIn, db: Session = Depends(get_db), me: User = Depends(require_active_user)):
     ref = canonical_ref(db, body.kind, body.ref)
     text = clean_body(body.body)
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-    recent = db.scalar(select(func.count()).select_from(Comment).where(Comment.author_id == me.id, Comment.created_at >= cutoff))
-    if recent >= MAX_PER_HOUR:
-        raise HTTPException(429, "You are posting too fast. Please try again later.")
+    enforce_rate_limit(db, me)
 
     thread = db.scalar(select(Thread).where(Thread.kind == body.kind, Thread.ref == ref))
     if thread is None:

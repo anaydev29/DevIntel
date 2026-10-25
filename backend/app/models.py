@@ -268,3 +268,16 @@ class ScoreComponent(Base):
     value: Mapped[float] = mapped_column(Float)
     rank: Mapped[float] = mapped_column(Float)
     weight: Mapped[float] = mapped_column(Float)
+
+
+class TopicMeta(Base):
+    """Extra details for a free topic (a Thread of kind "general"): who started it and what it is about.
+    The opening post is the thread's first comment."""
+    __tablename__ = "topic_meta"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    thread_id: Mapped[int] = mapped_column(ForeignKey("threads.id", ondelete="CASCADE"), unique=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    technology_id: Mapped[int | None] = mapped_column(ForeignKey("technologies.id", ondelete="SET NULL"))
+    article_id: Mapped[int | None] = mapped_column(Integer)         # a blog or news item on DevIntel the topic is about
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)

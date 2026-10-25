@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.cache import cached
 from app.database import get_db
-from app.models import MetricSnapshot, Source, TechScore, Technology
+from app.models import Article, MetricSnapshot, Repository, Source, TechScore, Technology
 from app.normalize import resolve_technology
-from app.schemas import MetricPoint, TechnologyDetail, TechnologyOut
+from app.schemas import (LearnArticle, MetricPoint, RelatedTech, RepoLite, TechnologyDetail, TechnologyOut,
+                         TechnologyPageOut)
+from app.skillgap import cooccurrence
 
 router = APIRouter(prefix="/technologies", tags=["technologies"])
 
@@ -32,7 +34,10 @@ def get_technology(name: str, db: Session = Depends(get_db)):
     tech = resolve_technology(db, name)  # accepts slug or alias, e.g. "reactjs"
     if not tech:
         raise HTTPException(404, f"Technology '{name}' not found")
+    return _detail(db, tech)
 
+
+def _detail(db: Session, tech: Technology) -> TechnologyDetail:
     # newest value of each metric from the last 7 days, in one query (sources may be collected on different days)
     latest: dict[str, float] = {}
     for metric, value in db.execute(select(MetricSnapshot.metric, MetricSnapshot.value).where(
@@ -65,3 +70,34 @@ def get_metrics(name: str, metric: str | None = None, days: int = Query(90, le=7
         stmt = stmt.where(MetricSnapshot.metric == metric)
     return [MetricPoint(metric=s.metric, source=src, value=s.value, captured_on=s.captured_on)
             for s, src in db.execute(stmt)]
+
+
+BEGINNER_TAGS = {"beginners", "tutorial", "learning", "basics", "productivity"}
+
+
+@router.get("/{name}/page", response_model=TechnologyPageOut)
+@cached()
+def technology_page(name: str, db: Session = Depends(get_db)):
+    """Everything for a technology's own page: details, related technologies, learning resources, popular repos."""
+    tech = resolve_technology(db, name)
+    if not tech:
+        raise HTTPException(404, f"Technology '{name}' not found")
+
+    # related technologies: those that appear in the same recent dev.to articles
+    together = cooccurrence(db)[tech.id].most_common(6)
+    names = {t.id: t for t in db.scalars(select(Technology).where(Technology.id.in_([i for i, _ in together])))} if together else {}
+    related = [RelatedTech(slug=names[i].slug, name=names[i].name, category=names[i].category, together=n)
+               for i, n in together if i in names]
+
+    # learning resources: recent popular articles, beginner-friendly ones first
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    posts = db.scalars(select(Article).where(Article.source == "devto", Article.technology_id == tech.id,
+                                             Article.published_at >= cutoff)).all()
+    posts.sort(key=lambda a: (not (BEGINNER_TAGS & {t.lower() for t in (a.tags or [])}), -a.score))
+    articles = [LearnArticle(id=a.id, title=a.title, url=a.url, author=a.author, score=a.score, reading_time=a.reading_time,
+                             beginner=bool(BEGINNER_TAGS & {t.lower() for t in (a.tags or [])})) for a in posts[:6]]
+
+    repos = [RepoLite(full_name=r.full_name, url=f"https://github.com/{r.full_name}", stars=r.stars, language=r.language)
+             for r in db.scalars(select(Repository).where(Repository.technology_id == tech.id)
+                                 .order_by(Repository.stars.desc()).limit(5))]
+    return TechnologyPageOut(technology=_detail(db, tech), related=related, articles=articles, repos=repos)
