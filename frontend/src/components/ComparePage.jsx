@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { loadCompare } from '../lib/api'
 import { METRIC_LABELS, categoryName, formatMetric, growthText } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
+import LineChart from './LineChart'
 
 const COLORS = [
   { bg: 'bg-sky', hex: '#4D7CFF' },
@@ -16,32 +17,6 @@ function Picker({ label, value, onChange, options, color }) {
         {options.map((t) => <option key={t.slug} value={t.slug}>{t.name}</option>)}
       </select>
     </label>
-  )
-}
-
-function TrendChart({ techs }) {
-  const points = techs.flatMap((t) => t.history.map((h) => new Date(h.date).getTime()))
-  const min = Math.min(...points), max = Math.max(...points)
-  if (techs.every((t) => t.history.length < 2)) {
-    return <p className="border-[3px] border-dashed border-ink p-4">Score trend lines appear after a few days of collected data. The pipeline adds a new point every day.</p>
-  }
-  const x = (d) => 40 + (max === min ? 0 : ((new Date(d).getTime() - min) / (max - min)) * 540)
-  const y = (s) => 180 - s * 1.7
-  const fmtDate = (t) => new Date(t).toLocaleDateString('en', { day: 'numeric', month: 'short' })
-  return (
-    <svg viewBox="0 0 600 220" className="w-full border-[3px] border-ink bg-white" role="img" aria-label="DevIntel Score over time for each technology">
-      <line x1="40" y1="10" x2="40" y2="180" stroke="#000" strokeWidth="3" />
-      <line x1="40" y1="180" x2="580" y2="180" stroke="#000" strokeWidth="3" />
-      {[0, 50, 100].map((v) => <text key={v} x="34" y={y(v) + 4} textAnchor="end" fontSize="12" fontWeight="700">{v}</text>)}
-      <text x="40" y="204" fontSize="12" fontWeight="700">{fmtDate(min)}</text>
-      <text x="580" y="204" textAnchor="end" fontSize="12" fontWeight="700">{fmtDate(max)}</text>
-      {techs.map((t, i) => (
-        <g key={t.slug}>
-          <polyline fill="none" stroke={COLORS[i].hex} strokeWidth="5" points={t.history.map((h) => `${x(h.date)},${y(h.score)}`).join(' ')} />
-          {t.history.map((h) => <circle key={h.date} cx={x(h.date)} cy={y(h.score)} r="5" fill={COLORS[i].hex} stroke="#000" strokeWidth="2" />)}
-        </g>
-      ))}
-    </svg>
   )
 }
 
@@ -127,7 +102,9 @@ export default function ComparePage({ technologies }) {
           <p className="mb-5 text-sm">Higher is highlighted, but bigger is not always better: a newer tool can have fewer questions and still be growing much faster. Check the growth numbers too.</p>
 
           <h3 className="mb-2 font-display text-2xl">Score over time</h3>
-          <TrendChart techs={techs} />
+          <LineChart label="DevIntel Score over time for each technology" domain={[0, 100]}
+            emptyMessage="Score trend lines appear after a few days of collected data. The pipeline adds a new point every day."
+            series={techs.map((t, i) => ({ name: t.name, color: COLORS[i].hex, points: t.history.map((h) => ({ date: h.date, value: h.score })) }))} />
         </>
       )}
     </section>

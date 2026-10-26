@@ -58,7 +58,7 @@ def test_query_budgets(env):
     client, _, _ = env
     budgets = [("get", "/rankings/trending?limit=100", 1), ("get", "/rankings/emerging", 1), ("get", "/categories", 1),
                ("get", "/pipeline/runs", 1), ("get", "/rankings/breakdown", 2), ("get", "/feed/news", 1), ("get", "/feed/repos", 1), ("get", "/feed/blogs", 1),
-               ("get", "/technologies/python", 4), ("get", "/topics", 1), ("get", "/technologies/python/page", 10), ("get", "/compare?techs=fastapi,django", 5),
+               ("get", "/technologies/python", 4), ("get", "/topics", 1), ("get", "/rankings/backtest", 5), ("get", "/technologies/python/history", 3), ("get", "/technologies/python/page", 10), ("get", "/compare?techs=fastapi,django", 5),
                ("get", "/discussions?kind=technology&ref=python", 2)]
     for method, path, budget in budgets:
         used = queries(client, method, path)

@@ -374,3 +374,40 @@ class TechnologyPageOut(BaseModel):
     related: list[RelatedTech]
     articles: list[LearnArticle]
     repos: list[RepoLite]
+
+
+class BacktestEvent(BaseModel):
+    slug: str
+    technology: str
+    flagged_on: date
+    forward_growth: float
+    median_growth: float
+    beat_median: bool
+
+
+class BacktestOut(BaseModel):
+    status: str                      # ready / waiting / no_data
+    message: str
+    horizon_days: int
+    latest_data_date: date | None
+    baseline: float
+    flags: int
+    hits: int
+    hit_rate: float | None
+    ci_low: float | None
+    ci_high: float | None
+    avg_forward_growth_flagged: float | None
+    avg_forward_growth_all: float | None
+    events: list[BacktestEvent]
+
+
+class SeriesPoint(BaseModel):
+    date: date
+    value: float
+
+
+class HistoryOut(BaseModel):
+    slug: str
+    name: str
+    score: list[SeriesPoint]
+    metrics: dict[str, list[SeriesPoint]]

@@ -24,6 +24,7 @@ Someone who wants to know "what should I learn?" has to check GitHub Trending, S
 | **Moderation** | Visible only to moderators and admins: a queue of reported comments (keep, remove or ban the author), an audit log of every decision, and, for admins, a People list to appoint moderators. |
 | **Topics** | Anyone signed in can start a discussion (optionally about a technology or about a blog or news item), and everyone can read and reply. Topics have their own links. |
 | **Technology pages** | Each technology has its own page (open any technology, then "Open the full page"): its score and how it is made, related technologies, beginner-friendly articles to learn from, popular repositories, topics and the discussion. |
+| **Backtest** | Tests the "Taking off" flag against its own history: of the technologies we flagged, how many grew faster than the typical technology over the following 7, 14 or 30 days? Shows the hit rate with its uncertainty range and every judged flag. |
 | **Compare** | Pick two technologies (for example FastAPI vs Django) and see a side-by-side summary, every signal with the leader highlighted, and a score-over-time chart. |
 | **Blogs** | The most popular dev.to articles of the last two weeks, filterable by technology. |
 | **News** | The current Hacker News front page. |
@@ -58,7 +59,7 @@ Everything is computed from daily snapshots stored in the database. The formulas
 
 **Explaining and re-weighting the score.** The rank each signal earned is stored for every technology, so the popup can show exactly how a score adds up and the sliders can recompute it in the browser with the same formula. Download counts from npm and PyPI are shown in the popup and in Compare but are deliberately **not** part of the score: they include automated installs and cannot be compared between the two registries. The "Taking off" flag does not change with the sliders.
 
-The thresholds are starting values. The plan is to tune them with a backtest once 30 days of history exist.
+The thresholds are starting values, and the **Backtest** tab measures how well the flag has actually worked (method and limits are written on that page and in `backend/app/backtest.py`). The plan is to tune them with a backtest once 30 days of history exist.
 
 ## Data sources
 
@@ -112,7 +113,7 @@ backend/
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads, wikipedia
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, topics, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (89 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (95 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -183,6 +184,8 @@ pytest -q
 | `GET /technologies` | List and search (`q`, `category`) |
 | `GET /technologies/{name}` | One technology with latest metrics, score and growth (aliases accepted) |
 | `GET /technologies/{name}/metrics` | Metric history for charts (`metric`, `days`) |
+| `GET /rankings/backtest?horizon=14` | Results of the flag backtest (horizon 7, 14 or 30 days) |
+| `GET /technologies/{name}/history` | Daily score and every signal over time, for the trend charts |
 | `GET /technologies/{name}/page` | Everything for a technology's page: details, related technologies, learning articles, popular repositories |
 | `GET /topics`, `GET /topics/{ref}`, `POST /topics` | List, read and start free topics (starting one needs sign-in) |
 | `GET /compare?techs=fastapi,django` | Side-by-side data for 2 or 3 technologies |
@@ -300,7 +303,9 @@ The catalog (87 technologies) lives in `backend/app/seed.py`. To add a technolog
 - [x] Discussions on technologies, blogs, news and repos (replies, upvotes, reports)
 - [x] Free topic posts (title, text, optional technology or article, replies and moderation like any comment)
 - [x] Moderation: roles, report queue, bans, audit log, community guidelines and privacy pages
-- [ ] Backtest of the emerging flag, then threshold tuning
+- [x] Backtest page for the emerging flag (real results appear as daily history accumulates)
+- [x] Trend charts on technology pages and in Compare
+- [ ] Tune the flag thresholds once about 60 days of history exist
 - [ ] Public deployment with a live link
 
 ## About

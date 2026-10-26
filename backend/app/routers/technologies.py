@@ -8,7 +8,7 @@ from app.cache import cached
 from app.database import get_db
 from app.models import Article, MetricSnapshot, Repository, Source, TechScore, Technology
 from app.normalize import resolve_technology
-from app.schemas import (LearnArticle, MetricPoint, RelatedTech, RepoLite, TechnologyDetail, TechnologyOut,
+from app.schemas import (HistoryOut, LearnArticle, MetricPoint, SeriesPoint, RelatedTech, RepoLite, TechnologyDetail, TechnologyOut,
                          TechnologyPageOut)
 from app.skillgap import cooccurrence
 
@@ -101,3 +101,21 @@ def technology_page(name: str, db: Session = Depends(get_db)):
              for r in db.scalars(select(Repository).where(Repository.technology_id == tech.id)
                                  .order_by(Repository.stars.desc()).limit(5))]
     return TechnologyPageOut(technology=_detail(db, tech), related=related, articles=articles, repos=repos)
+
+
+@router.get("/{name}/history", response_model=HistoryOut)
+@cached()
+def technology_history(name: str, days: int = Query(90, ge=7, le=365), db: Session = Depends(get_db)):
+    """Daily DevIntel Score and every raw signal over time, for the trend charts."""
+    tech = resolve_technology(db, name)
+    if not tech:
+        raise HTTPException(404, f"Technology '{name}' not found")
+    since = date.today() - timedelta(days=days)
+    score = [SeriesPoint(date=s.computed_on, value=s.devintel_score) for s in db.scalars(
+        select(TechScore).where(TechScore.technology_id == tech.id, TechScore.computed_on >= since).order_by(TechScore.computed_on))
+        if s.devintel_score is not None]
+    metrics: dict[str, list[SeriesPoint]] = {}
+    for metric, day, value in db.execute(select(MetricSnapshot.metric, MetricSnapshot.captured_on, MetricSnapshot.value).where(
+            MetricSnapshot.technology_id == tech.id, MetricSnapshot.captured_on >= since).order_by(MetricSnapshot.captured_on)):
+        metrics.setdefault(metric, []).append(SeriesPoint(date=day, value=value))
+    return HistoryOut(slug=tech.slug, name=tech.name, score=score, metrics=metrics)

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.cache import cached
 from app.database import get_db
 from app.models import ScoreComponent, TechScore, Technology
-from app.schemas import BreakdownOut, BreakdownTech, ComponentOut, RankingItem
+from app.backtest import HORIZONS, run_backtest
+from app.schemas import BacktestOut, BreakdownOut, BreakdownTech, ComponentOut, RankingItem
 
 router = APIRouter(prefix="/rankings", tags=["rankings"])
 
@@ -62,3 +63,12 @@ def breakdown(db: Session = Depends(get_db)):
                            growth_30d=s.growth_30d, is_emerging=s.is_emerging, components=comps.get(t.id, {}))
              for s, t in sorted(rows, key=lambda r: r[0].devintel_score or 0, reverse=True)]
     return BreakdownOut(computed_on=day, weights=weights, technologies=techs)
+
+
+@router.get("/backtest", response_model=BacktestOut)
+@cached()
+def backtest(horizon: int = Query(14), db: Session = Depends(get_db)):
+    """Did technologies flagged as "taking off" really keep growing? See app/backtest.py for the method."""
+    if horizon not in HORIZONS:
+        raise HTTPException(422, f"horizon must be one of {HORIZONS}")
+    return run_backtest(db, horizon)

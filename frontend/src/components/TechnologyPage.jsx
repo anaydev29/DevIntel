@@ -1,8 +1,10 @@
-import { loadTechPage, loadTopics } from '../lib/api'
+import { useState } from 'react'
+import { loadHistory, loadTechPage, loadTopics } from '../lib/api'
 import { METRIC_LABELS, categoryName, compact, formatMetric, growthText, timeAgo } from '../lib/format'
 import { goHome, newTopicLink, techLink, topicLink } from '../lib/route'
 import { useAsync } from '../lib/useAsync'
 import DiscussionPanel from './DiscussionPanel'
+import LineChart from './LineChart'
 import ScoreBreakdown from './ScoreBreakdown'
 import WatchButton from './WatchButton'
 
@@ -11,6 +13,36 @@ const linkClass = 'font-bold underline decoration-2 underline-offset-4 hover:bg-
 
 function Sticker({ children, color = 'bg-white' }) {
   return <span className={`border-[3px] border-ink px-3 py-0.5 font-bold shadow-brut-xs ${color}`}>{children}</span>
+}
+
+function Trends({ slug, name }) {
+  const history = useAsync(() => loadHistory(slug), [slug])
+  const [metric, setMetric] = useState('')
+  const h = history.data
+  if (!h) return null
+  const available = Object.keys(METRIC_LABELS).filter((m) => h.metrics[m]?.length)
+  const chosen = metric && h.metrics[metric] ? metric : (available.includes('stackoverflow.questions_30d') ? 'stackoverflow.questions_30d' : available[0])
+  return (
+    <section className={card}>
+      <h3 className="font-display text-2xl leading-tight">Trends</h3>
+      <p className="mb-3 text-sm">How {name} has moved since we started collecting. One point is added every day.</p>
+      <h4 className="mb-2 font-bold">DevIntel Score</h4>
+      <LineChart label={`DevIntel Score of ${name} over time`} domain={[0, 100]}
+        series={[{ name: 'Score', color: '#4D7CFF', points: h.score.map((p) => ({ date: p.date, value: p.value })) }]} />
+      {chosen && (
+        <div className="mt-6">
+          <label className="mb-2 flex flex-wrap items-center gap-3 font-bold">
+            Signal
+            <select value={chosen} onChange={(e) => setMetric(e.target.value)} className="cursor-pointer border-[3px] border-ink bg-white px-3 py-1 shadow-brut-xs">
+              {available.map((m) => <option key={m} value={m}>{METRIC_LABELS[m]}</option>)}
+            </select>
+          </label>
+          <LineChart label={`${METRIC_LABELS[chosen]} of ${name} over time`} formatY={(v) => formatMetric(chosen, v)}
+            series={[{ name: METRIC_LABELS[chosen], color: '#FF5CA8', points: h.metrics[chosen] }]} />
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function TechnologyPage({ slug }) {
@@ -42,6 +74,8 @@ export default function TechnologyPage({ slug }) {
             <div className="mt-4"><WatchButton slug={t.slug} /></div>
             <ScoreBreakdown slug={t.slug} />
           </section>
+
+          <Trends slug={t.slug} name={t.name} />
 
           <section className={card}>
             <h3 className="font-display text-2xl leading-tight">Related technologies</h3>

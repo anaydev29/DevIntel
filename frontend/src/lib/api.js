@@ -94,3 +94,6 @@ export const loadTopics = (tech, sort = 'active', limit = 30) =>
   get(`/topics?sort=${sort}&limit=${limit}${tech ? `&tech=${encodeURIComponent(tech)}` : ''}`)
 export const loadTopic = (ref) => get(`/topics/${encodeURIComponent(ref)}`)
 export const createTopic = (payload) => send('POST', '/topics', payload)
+
+export const loadHistory = (slug, days = 90) => get(`/technologies/${encodeURIComponent(slug)}/history?days=${days}`)
+export const loadBacktest = (horizon = 14) => get(`/rankings/backtest?horizon=${horizon}`)

@@ -16,6 +16,7 @@ const ModerationPage = lazy(() => import('./components/ModerationPage'))
 const BlogsPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.BlogsPage })))
 const NewsPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.NewsPage })))
 const ReposPage = lazy(() => import('./components/Feeds').then((m) => ({ default: m.ReposPage })))
+const BacktestPage = lazy(() => import('./components/BacktestPage'))
 const TopicsPage = lazy(() => import('./components/TopicsPage'))
 const TopicPage = lazy(() => import('./components/TopicPage'))
 const TechnologyPage = lazy(() => import('./components/TechnologyPage'))
@@ -40,6 +41,7 @@ const TABS = [
   ['blogs', 'Blogs'],
   ['news', 'News'],
   ['repos', 'Trending repos'],
+  ['backtest', 'Backtest'],
   ['profile', 'My profile'],
 ]
 
@@ -117,6 +119,7 @@ export default function App() {
         {!route && tab === 'moderation' && isMod && <ModerationPage />}
         {!route && tab === 'guidelines' && <GuidelinesPage />}
         {!route && tab === 'privacy' && <PrivacyPage />}
+        {!route && tab === 'backtest' && <BacktestPage />}
         {!route && tab === 'profile' && <ProfilePage technologies={data?.items ?? []} onSelect={setSelected} />}
       </div>
 
