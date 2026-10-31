@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.github_profile import USERNAME_RE
-from app.models import (Comment, CommentReport, CommentVote, ModerationAction, Thread, TopicMeta, TechScore, Technology, User, UserBan,
+from app.models import (Comment, CommentReport, CommentVote, ModerationAction, Thread, TopicMeta, Technology, User, UserBan,
                         UserSkill, WatchlistItem)
 from app.normalize import resolve_technology
 from app.profile_data import build_profile, skills_of, watchlist_of

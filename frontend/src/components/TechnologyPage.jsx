@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { loadHistory, loadTechPage, loadTopics } from '../lib/api'
-import { METRIC_LABELS, categoryName, compact, formatMetric, growthText, timeAgo } from '../lib/format'
+import { METRIC_LABELS, categoryName, compact, formatMetric, growthText, safeHref, timeAgo } from '../lib/format'
 import { goHome, newTopicLink, techLink, topicLink } from '../lib/route'
 import { useAsync } from '../lib/useAsync'
 import DiscussionPanel from './DiscussionPanel'
@@ -98,7 +98,7 @@ export default function TechnologyPage({ slug }) {
               <ul className="flex flex-col gap-3">
                 {p.articles.map((a) => (
                   <li key={a.id} className="border-[3px] border-ink p-3 shadow-brut-xs">
-                    <a href={a.url} target="_blank" rel="noopener noreferrer" className={linkClass}>{a.title}</a>
+                    <a href={safeHref(a.url)} target="_blank" rel="noopener noreferrer" className={linkClass}>{a.title}</a>
                     <p className="mt-1 text-sm">{[a.author, a.reading_time && `${a.reading_time} min read`, `${compact.format(a.score)} reactions`].filter(Boolean).join(', ')}
                       {a.beginner && <span className="ml-2 border-2 border-ink bg-mint px-1.5 font-bold">Beginner friendly</span>}</p>
                   </li>
@@ -113,7 +113,7 @@ export default function TechnologyPage({ slug }) {
               <ul className="mt-3 flex flex-col gap-2">
                 {p.repos.map((r) => (
                   <li key={r.full_name} className="flex flex-wrap items-center justify-between gap-2 border-2 border-ink p-2">
-                    <a href={r.url} target="_blank" rel="noopener noreferrer" className={linkClass}>{r.full_name}</a>
+                    <a href={safeHref(r.url)} target="_blank" rel="noopener noreferrer" className={linkClass}>{r.full_name}</a>
                     <span className="text-sm">{compact.format(r.stars)} stars{r.language ? `, ${r.language}` : ''}</span>
                   </li>
                 ))}

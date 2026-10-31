@@ -25,7 +25,7 @@ def fetch_repos(client: httpx.Client, username: str) -> list[dict]:
         resp = client.get(f"https://api.github.com/users/{username}/repos",
                           params={"per_page": 100, "sort": "pushed", "type": "owner"})
     except httpx.HTTPError:
-        raise GithubError(503, "Could not reach GitHub. Try again in a moment.")
+        raise GithubError(503, "Could not reach GitHub. Try again in a moment.") from None
     if resp.status_code == 404:
         raise GithubError(404, f"GitHub user '{username}' was not found")
     if resp.status_code in (403, 429):

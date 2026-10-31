@@ -44,7 +44,9 @@ def test_upsert_matches_on_google_id_not_email(db):
     assert again.role == "user"
 
 
-def test_anonymous_visitors(client):
+def test_anonymous_visitors(client, monkeypatch):
+    monkeypatch.setattr("app.routers.auth.google_enabled", lambda: False)
+    monkeypatch.setattr("app.routers.auth.oauth.create_client", lambda name: None)
     me = client.get("/auth/me").json()
     assert me["authenticated"] is False and me["user"] is None
     assert me["login_enabled"] is False                                   # no Google keys in the test environment

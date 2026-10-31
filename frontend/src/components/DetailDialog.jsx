@@ -20,7 +20,7 @@ export default function DetailDialog({ slug, onClose }) {
     let cancelled = false
     setTech(null)
     setFailed(false)
-    if (!ref.current.open) ref.current.showModal()
+    if (ref.current && !ref.current.open) ref.current.showModal()
     loadTechnology(slug)
       .then((t) => !cancelled && setTech(t))
       .catch(() => !cancelled && setFailed(true))

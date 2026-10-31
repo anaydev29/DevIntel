@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { loadBlogs, loadNews, loadRepos } from '../lib/api'
-import { compact, timeAgo } from '../lib/format'
+import { compact, safeHref, timeAgo } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 import { useCounts } from '../lib/useCounts'
 import { DiscussToggle } from './DiscussionPanel'
@@ -39,7 +39,7 @@ function ArticleCard({ a, scoreLabel, count = 0 }) {
   const host = (() => { try { return new URL(a.url).hostname.replace(/^www\./, '') } catch { return '' } })()
   return (
     <li className={cardClass}>
-      <a href={a.url} target="_blank" rel="noopener noreferrer" className="text-lg font-bold underline decoration-2 underline-offset-4 hover:bg-sun">
+      <a href={safeHref(a.url)} target="_blank" rel="noopener noreferrer" className="text-lg font-bold underline decoration-2 underline-offset-4 hover:bg-sun">
         {a.title}
       </a>
       <p className="mt-1 text-sm">

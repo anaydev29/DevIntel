@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from app.models import Article, MetricSnapshot, PipelineRun, Source, Technology
 
 
+def safe_http_url(url: str | None) -> str | None:
+    """Only web links may be stored: a 'javascript:' or 'data:' link from an outside source would run code when clicked."""
+    url = (url or "").strip()
+    return url if url.lower().startswith(("http://", "https://")) and len(url) <= 800 else None
+
+
 class RateLimitError(Exception):
     """Raised when an API says stop; aborts the run but keeps data already saved."""
 
@@ -37,6 +43,11 @@ def save_metric(db: Session, tech_id: int, source_id: int, metric: str,
 
 def upsert_article(db: Session, source: str, external_id: str, **fields) -> None:
     """Insert or refresh an article so re-running a collector never duplicates rows."""
+    if "url" in fields:
+        url = safe_http_url(fields["url"])
+        if not url:
+            return                                      # no usable web link: skip this item
+        fields["url"] = url
     row = db.scalar(select(Article).where(Article.source == source, Article.external_id == external_id))
     if not row:
         row = Article(source=source, external_id=external_id)

@@ -55,7 +55,8 @@ if STATIC_DIR.exists():
         async def get_response(self, path, scope):
             response = await super().get_response(path, scope)
             if response.status_code == 200:
-                response.headers["Cache-Control"] = ("public, max-age=31536000, immutable" if path.startswith("assets/")
+                normalized = path.replace("\\", "/")
+                response.headers["Cache-Control"] = ("public, max-age=31536000, immutable" if normalized.startswith("assets/")
                                                      else "no-cache")
             return response
 

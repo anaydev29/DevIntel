@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, literal, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -135,7 +136,13 @@ def post_comment(body: CommentIn, db: Session = Depends(get_db), me: User = Depe
     if thread is None:
         thread = Thread(kind=body.kind, ref=ref)
         db.add(thread)
-        db.flush()
+        try:
+            db.flush()
+        except IntegrityError:                      # someone else created it a moment ago: use theirs
+            db.rollback()
+            thread = db.scalar(select(Thread).where(Thread.kind == body.kind, Thread.ref == ref))
+            if thread is None:
+                raise HTTPException(409, "Please try again") from None
     duplicate = db.scalar(select(Comment.id).where(Comment.thread_id == thread.id, Comment.author_id == me.id, Comment.body == text,
                                                    Comment.created_at >= datetime.now(timezone.utc) - timedelta(minutes=10)))
     if duplicate:
@@ -199,7 +206,10 @@ def vote(comment_id: int, body: VoteIn, db: Session = Depends(get_db), me: User 
         db.add(CommentVote(comment_id=c.id, user_id=me.id))
     elif not body.voted and existing:
         db.delete(existing)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:                          # a double click: the vote already exists, which is the wanted result
+        db.rollback()
     return VoteOut(score=db.scalar(select(func.count()).select_from(CommentVote).where(CommentVote.comment_id == c.id)), voted=body.voted)
 
 
@@ -213,4 +223,7 @@ def report(comment_id: int, body: ReportIn, db: Session = Depends(get_db), me: U
         db.flush()
         if counting_reports(db, c.id) >= HIDE_AFTER_REPORTS:
             c.status = "hidden"           # held back until a moderator reviews it
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:                      # a double click: already reported
+            db.rollback()

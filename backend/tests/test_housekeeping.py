@@ -1,4 +1,7 @@
-from datetime import datetime, timezone
+import os
+
+import pytest
+from sqlalchemy import text
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -18,7 +21,7 @@ def test_rls_statements_cover_every_table_and_are_quoted():
 
 
 def test_rls_is_skipped_on_sqlite():
-    engine = create_engine("sqlite://", poolclass=StaticPool)
+    engine = create_engine("sqlite:///:memory:", poolclass=StaticPool)   # an explicit SQLite URL is never swapped for PostgreSQL
     ensure_row_level_security(engine)          # would fail on SQLite if it ran: it must be a quiet no-op
 
 
@@ -33,3 +36,18 @@ def test_list_users_shows_role_and_ban_status():
     assert set(rows) == {"a@example.com", "b@example.com"}
     assert rows["b@example.com"]["banned"] is True and rows["a@example.com"]["banned"] is False
     assert rows["a@example.com"]["role"] == "user"
+
+
+@pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="needs real PostgreSQL (set TEST_DATABASE_URL)")
+def test_rls_on_postgres_protects_every_table_and_the_owner_still_works():
+    engine = create_engine("sqlite://")                      # with TEST_DATABASE_URL set, this is a fresh PostgreSQL schema
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO users (google_sub, email, role, created_at) VALUES ('g1', 'a@example.com', 'user', now())"))
+    ensure_row_level_security(engine)
+    ensure_row_level_security(engine)                        # safe to repeat
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM users")).scalar() == 1          # the table owner (our backend) is unaffected
+        unprotected = conn.execute(text(
+            "SELECT relname FROM pg_class WHERE relnamespace = current_schema()::regnamespace AND relkind = 'r' AND NOT relrowsecurity")).all()
+    assert unprotected == [], f"tables without row level security: {unprotected}"

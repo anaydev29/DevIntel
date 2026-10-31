@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 import httpx
 from sqlalchemy.orm import Session
 
-from app.collectors.base import BaseCollector, RateLimitError, upsert_article
+from app.collectors.base import BaseCollector, RateLimitError, safe_http_url, upsert_article
 from app.models import Source, Technology
 
 API = "https://hn.algolia.com/api/v1/search"
@@ -28,7 +28,7 @@ class HackerNewsFrontPageCollector(BaseCollector):
             upsert_article(
                 db, "hackernews", oid,
                 title=(h.get("title") or "")[:400],
-                url=h.get("url") or f"https://news.ycombinator.com/item?id={oid}",
+                url=safe_http_url(h.get("url")) or f"https://news.ycombinator.com/item?id={oid}",
                 author=h.get("author"), tags=[],
                 published_at=datetime.fromtimestamp(h["created_at_i"], tz=timezone.utc),
                 score=h.get("points") or 0, comments=h.get("num_comments") or 0,

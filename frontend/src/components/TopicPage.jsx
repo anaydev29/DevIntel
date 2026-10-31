@@ -1,5 +1,5 @@
 import { loadTopic } from '../lib/api'
-import { timeAgo } from '../lib/format'
+import { safeHref, timeAgo } from '../lib/format'
 import { techLink } from '../lib/route'
 import { useAsync } from '../lib/useAsync'
 import DiscussionPanel from './DiscussionPanel'
@@ -18,7 +18,7 @@ export default function TopicPage({ refKey }) {
           <div className="my-3 flex flex-wrap items-center gap-2 text-sm font-bold">
             <span>{t.author.name}, {timeAgo(t.created_at)}</span>
             {t.technology && <a href={techLink(t.technology.slug)} className="border-2 border-ink bg-lilac px-2 hover:bg-sun">{t.technology.name}</a>}
-            {t.article && <a href={t.article.url} target="_blank" rel="noopener noreferrer" className="border-2 border-ink bg-white px-2 underline hover:bg-sun">About: {t.article.title}</a>}
+            {t.article && <a href={safeHref(t.article.url)} target="_blank" rel="noopener noreferrer" className="border-2 border-ink bg-white px-2 underline hover:bg-sun">About: {t.article.title}</a>}
           </div>
           <div className="mt-4"><DiscussionPanel kind="general" refKey={t.ref} originalId={t.first_comment_id} /></div>
         </>

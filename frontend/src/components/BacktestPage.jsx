@@ -51,7 +51,7 @@ export default function BacktestPage() {
         )}
       </section>
 
-      {r?.events.length > 0 && (
+      {r?.events?.length > 0 && (
         <section className={card}>
           <h3 className="font-display text-2xl leading-tight">Every flag we could judge</h3>
           <div className="mt-3 overflow-x-auto">

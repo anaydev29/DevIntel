@@ -113,7 +113,7 @@ backend/
     collectors/   base, github, stackoverflow, hackernews, hn_hiring, devto, hn_frontpage, trending_repos, downloads, wikipedia
     routers/      meta, technologies, rankings, feed, compare, skills, auth, me, discussions, topics, moderation
   run_pipeline.py        command-line entry point for the collectors and analysis
-  tests/                 pytest suite (95 tests, run on in-memory SQLite, no network)
+  tests/                 pytest suite (110 tests, run on in-memory SQLite, no network)
 frontend/
   src/App.jsx  src/components/  src/lib/
 ```
@@ -167,12 +167,14 @@ npm run dev                           # http://localhost:5173 (proxies API calls
 
 Keep the backend running in a second terminal. For a single-server build, run `npm run build`. FastAPI then serves `frontend/dist` at `/`.
 
-### 3. Tests
+### 3. Tests and checks
 
 ```powershell
 cd backend
 pytest -q
 ```
+
+By default the tests use throwaway in-memory SQLite databases. Production uses PostgreSQL, so the suite can also run against a real PostgreSQL server: set `TEST_DATABASE_URL` to a PostgreSQL URL (each test gets its own empty schema), for example `TEST_DATABASE_URL=postgresql+psycopg://user:password@127.0.0.1/devintel_test pytest -q`. One test (Row Level Security) only runs in that mode. In the frontend, `npm run lint` checks the React code.
 
 ## API
 
@@ -296,7 +298,6 @@ The catalog (87 technologies) lives in `backend/app/seed.py`. To add a technolog
 - [x] DevIntel Score, 30-day growth and the emerging flag
 - [x] Dashboard: rankings, compare, blogs, news, trending repos
 - [x] Skill-gap analyzer (pick skills or enter a GitHub username, see what to learn next)
-- [ ] Syllabus gap analyzer (map a course syllabus to current technologies)
 - [x] Hiring-demand signal from the monthly "Who is hiring?" threads
 - [x] Technology detail pages with related technologies and learning resources
 - [x] Accounts: Google sign-in, profile, saved skills, watchlist

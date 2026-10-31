@@ -38,3 +38,6 @@ export function timeAgo(iso) {
   const days = Math.round(minutes / 1440)
   return `${days} ${days === 1 ? 'day' : 'days'} ago`
 }
+
+// Only web links become clickable; anything else (for example a "javascript:" link) turns into a harmless "#"
+export const safeHref = (url) => (/^https?:\/\//i.test(url ?? '') ? url : '#')

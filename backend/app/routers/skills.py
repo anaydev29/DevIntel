@@ -42,7 +42,7 @@ def skill_gap(req: SkillGapRequest, db: Session = Depends(get_db), gh: httpx.Cli
         try:
             repos = github_profile.fetch_repos(gh, username)
         except github_profile.GithubError as e:
-            raise HTTPException(e.status, e.message)
+            raise HTTPException(e.status, e.message) from None
         for tech_id, count in github_profile.detect_technologies(db, repos).items():
             was_manual = tech_id in known
             known[tech_id] = {"source": "both" if was_manual else "github", "repos": count}

@@ -83,7 +83,7 @@ export default function ProfilePage({ technologies, onSelect }) {
 
       <section className={card}>
         <h2 className="font-display text-2xl leading-tight">My watchlist</h2>
-        {!profile?.watchlist.length ? (
+        {!profile?.watchlist?.length ? (
           <p className="mt-2 border-[3px] border-dashed border-ink p-4">Nothing here yet. Open any technology in Rankings and choose "Add to watchlist".</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">

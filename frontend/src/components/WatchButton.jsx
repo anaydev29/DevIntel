@@ -6,7 +6,7 @@ export default function WatchButton({ slug }) {
   const { authenticated, profile, setProfile } = useAuth()
   const [busy, setBusy] = useState(false)
   if (!authenticated) return <p className="text-sm">Sign in to add this to your watchlist.</p>
-  const watching = !!profile?.watchlist.some((w) => w.slug === slug)
+  const watching = !!profile?.watchlist?.some((w) => w.slug === slug)
 
   async function toggle() {
     setBusy(true)
