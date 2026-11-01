@@ -1,28 +1,27 @@
+import { Link } from '../lib/router'
 import { useAuth } from '../lib/auth'
 
-const btn = 'press cursor-pointer border-[3px] border-ink px-4 py-1.5 font-bold shadow-brut-xs hover:bg-sun'
-
-export default function AccountBar({ onProfile }) {
+// Sign-in controls shown on the right of the navigation bar.
+export default function AccountBar() {
   const { loading, user, loginEnabled, signOut } = useAuth()
   const failed = new URLSearchParams(window.location.search).get('login') === 'failed'
   return (
-    <div className="flex min-h-10 flex-wrap items-center justify-end gap-3">
-      {failed && <span className="border-2 border-ink bg-hot px-2 text-sm font-bold" role="alert">Sign-in failed. Please try again.</span>}
+    <div className="di-account">
+      {failed && <span className="di-chip bg-hot" role="alert">Sign-in failed. Please try again.</span>}
       {!loading && user && (
         <>
-          <button type="button" onClick={onProfile} className={`${btn} flex items-center gap-2 bg-white`}>
+          <Link to="/profile" className="di-btn di-btn--sm" aria-label="My profile">
             {user.avatar_url ? (
-              <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" className="h-6 w-6 border-2 border-ink" />
+              <img src={user.avatar_url} alt="" referrerPolicy="no-referrer" width="22" height="22" style={{ border: '2px solid #000' }} />
             ) : (
-              <span className="grid h-6 w-6 place-items-center border-2 border-ink bg-sun text-sm">{(user.name || user.email)[0].toUpperCase()}</span>
+              <span className="di-chip bg-sun">{(user.name || user.email)[0].toUpperCase()}</span>
             )}
-            {user.name || user.email}
-          </button>
-          <button type="button" onClick={signOut} className={`${btn} bg-white`}>Sign out</button>
+            <span className="di-account__name">{user.name || user.email}</span>
+          </Link>
+          <button type="button" onClick={signOut} className="di-btn di-btn--sm">Sign out</button>
         </>
       )}
-      {!loading && !user && loginEnabled && <a href="/auth/google/login" className={`${btn} bg-white`}>Sign in with Google</a>}
-      {!loading && !user && !loginEnabled && <span className="text-sm">Sign-in is not set up on this server</span>}
+      {!loading && !user && loginEnabled && <a href="/auth/google/login" className="di-btn di-btn--sm di-btn--lime"><span className="di-hide-sm">Sign in with Google</span><span className="di-show-sm">Sign in</span></a>}
     </div>
   )
 }
