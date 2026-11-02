@@ -88,7 +88,6 @@ export default function Home({ data, onSelect }) {
         </div>
 
         <div className="di-scene">
-          <div className="di-scene__bar"><span>Data core, 3D</span><span>move your mouse</span></div>
           <div className="di-scene__stage">
             <SceneBoundary>
               <Suspense fallback={<SceneFallback message="Loading the 3D view..." />}>
@@ -103,6 +102,7 @@ export default function Home({ data, onSelect }) {
               </div>
             )}
           </div>
+          <p className="di-scene__caption"><span className="di-sticker bg-lime">Move your mouse. Click to spin.</span></p>
         </div>
       </section>
 

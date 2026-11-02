@@ -11,8 +11,11 @@ npm run dev
 If the fonts ever fail to resolve, also run: `npm install @fontsource/archivo-black @fontsource/space-grotesk`
 
 ## What is new
-- `/#/` Landing page: new hero, live stats from your API, a Three.js scene that tilts with the mouse (click it to spin it),
+- `/#/` Landing page: new hero, live stats from your API, the 3D "Multi-Language Tech Matrix" from your Stitch design
+  (18 cubes showing languages and tools, 32 orbiting voxels, tilts with the mouse, click to spin),
   a ticker of the top technologies, a live leaderboard, "How a score is made", and links to every page.
+- The "Live data" strip under the navigation now scrolls continuously (pauses on hover, updates its "x h ago" text every minute,
+  stays still for reduced motion, and has a text summary for screen readers).
 - Separate pages with a sticky navigation bar: `/#/rankings` (search, category filter, sort, pagination),
   `/#/compare`, `/#/skills`, `/#/news`, `/#/blogs`, `/#/repos`, `/#/profile`.
 - The old components (Compare, Skill gap, Profile, detail popup) are reused inside the new layout.
