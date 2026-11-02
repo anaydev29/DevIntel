@@ -60,6 +60,7 @@ def sign_in(client, db_=None):
 
 def test_login_redirects_to_google_with_the_right_return_address(setup, monkeypatch):
     client, fake, _ = setup
+    monkeypatch.setattr(settings, "public_base_url", None)
     r = client.get("/auth/google/login")
     assert r.status_code == 302 and r.headers["location"].startswith("https://accounts.google.com/")
     assert fake.redirect_uri == "http://testserver/auth/google/callback"

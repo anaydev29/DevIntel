@@ -27,9 +27,10 @@ const TILES = [
   ['/rankings', '01', 'Rankings', 'Every technology scored from 0 to 100, with 30-day growth, filters and sorting.', 'bg-sun', 'Open rankings'],
   ['/compare', '02', 'Compare', 'Put two technologies head to head and see which one leads on each signal.', 'bg-sky', 'Start a duel'],
   ['/skills', '03', 'Skill gap', 'Enter your skills or a GitHub username and get ranked advice on what to learn next.', 'bg-mint', 'Find my next skill'],
-  ['/news', '04', 'News', 'The Hacker News front page, collected every day.', 'bg-white', 'Read the news'],
-  ['/blogs', '05', 'Blogs', 'Popular Dev.to articles from the last two weeks, filterable by technology.', 'bg-lilac', 'Browse articles'],
-  ['/repos', '06', 'Trending repos', 'The most-starred GitHub repositories created in the last 7 days.', 'bg-hot', 'See what is new'],
+  ['/topics', '04', 'Topics', 'Ask questions, share advice, and start discussions about any technology.', 'bg-lime', 'Join discussion'],
+  ['/news', '05', 'News', 'The Hacker News front page, collected every day.', 'bg-white', 'Read the news'],
+  ['/blogs', '06', 'Blogs', 'Popular Dev.to articles from the last two weeks, filterable by technology.', 'bg-lilac', 'Browse articles'],
+  ['/repos', '07', 'Trending repos', 'The most-starred GitHub repositories created in the last 7 days.', 'bg-hot', 'See what is new'],
 ]
 
 function Stat({ label, value, note }) {
@@ -102,7 +103,7 @@ export default function Home({ data, onSelect }) {
               </div>
             )}
           </div>
-          <p className="di-scene__caption"><span className="di-sticker bg-lime">Move your mouse. Click to spin.</span></p>
+          <p className="di-scene__caption"><span className="di-sticker bg-lime">Drag to rotate. Click to spin.</span></p>
         </div>
       </section>
 
@@ -111,7 +112,7 @@ export default function Home({ data, onSelect }) {
           <div className="di-ticker__track">
             {[...tickerItems, ...tickerItems].map((t, i) => (
               <span key={`${t.slug}-${i}`} className="di-ticker__item">
-                {t.name}<b>{Math.round(t.devintel_score ?? 0)}</b>
+                {t.name} <b>{Math.round(t.devintel_score ?? 0)}</b>
                 {t.growth_30d != null && <i>{growthText(t.growth_30d)}</i>}
               </span>
             ))}
@@ -156,27 +157,10 @@ export default function Home({ data, onSelect }) {
         </div>
       </section>
 
-      <section className="di-wrap di-section" aria-labelledby="di-how-title">
+      <section className="di-wrap di-section" aria-labelledby="di-weights-title">
         <div className="di-section__head">
-          <h2 id="di-how-title" className="di-h2">How a score is made</h2>
-          <p className="di-sub">No black box: three steps, all documented in the open-source code.</p>
-        </div>
-        <div className="di-steps">
-          <article className="di-card di-step">
-            <span className="di-step__num">1</span>
-            <h3>Collect</h3>
-            <p>Seven collectors run every day: GitHub, Stack Overflow, Hacker News (stories, front page and job posts), Dev.to and trending repositories. Each result is saved as a daily snapshot.</p>
-          </article>
-          <article className="di-card di-step">
-            <span className="di-step__num">2</span>
-            <h3>Score</h3>
-            <p>Every signal becomes a percentile rank, so Python&apos;s huge numbers do not flatten smaller tools. The ranks are combined with fixed weights into a 0 to 100 score.</p>
-          </article>
-          <article className="di-card di-step">
-            <span className="di-step__num">3</span>
-            <h3>Flag</h3>
-            <p>A technology is &quot;Taking off&quot; only if its score is at least 20, 30-day growth is 15% or more, at least two of three sources agree, and it is in the top 20% by growth.</p>
-          </article>
+          <h2 id="di-weights-title" className="di-h2">Transparent scoring</h2>
+          <p className="di-sub">Seven signals from four independent developer platforms. No black boxes.</p>
         </div>
         <div className="di-wbar" role="img" aria-label={`Score weights: ${WEIGHTS.map(([n, w]) => `${n} ${w} percent`).join(', ')}`}>
           {WEIGHTS.map(([name, w, color]) => (
@@ -193,7 +177,7 @@ export default function Home({ data, onSelect }) {
       <section className="di-wrap di-section" aria-labelledby="di-explore-title">
         <div className="di-section__head">
           <h2 id="di-explore-title" className="di-h2">Explore DevIntel</h2>
-          <p className="di-sub">Six views, one dataset.</p>
+          <p className="di-sub">Seven views, one dataset.</p>
         </div>
         <div className="di-tiles">
           {TILES.map(([to, no, title, text, color, go]) => (

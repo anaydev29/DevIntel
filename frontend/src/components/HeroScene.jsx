@@ -4,8 +4,8 @@ import SceneFallback from './SceneFallback'
 
 // The landing-page 3D scene: the "Multi-Language Tech Matrix".
 // 18 floating cubes show a language or tool on every face, and 32 small voxels orbit around them.
-// The whole cluster turns towards the mouse, a click gives it a spin, it pauses when scrolled out of
-// view or when the tab is hidden, and it stays still for people who prefer reduced motion.
+// The whole cluster turns towards the mouse, can be dragged to rotate in any direction, a click
+// gives it a spin, it pauses when scrolled out of view, and it stays still for reduced motion.
 
 const SPECS = [
   { name: 'Python', symbol: '\u{1F40D} PY', bg: '#ffe600', accent: '#3776ab', size: 1.22, pos: [-3.8, 2.6, 1.4], rot: [0.012, 0.016] },
@@ -31,7 +31,6 @@ const VOXEL_COLORS = [0xffe600, 0x4efa94, 0x00f0ff, 0xff66c4, 0xffffff, 0xc084fc
 const VOXELS = 32
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
 
-// Draws one cube face. The artwork is laid out on a 512 x 512 grid and scaled to the canvas size.
 function drawFace(canvas, spec) {
   const ctx = canvas.getContext('2d')
   ctx.setTransform(canvas.width / 512, 0, 0, canvas.height / 512, 0, 0)
@@ -64,7 +63,7 @@ function build(canvas, host) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000)
 
-  // Newer three.js versions measure light in physical units, which is about PI times dimmer
+  // Proper lighting for physical units in modern Three.js
   const k = parseInt(THREE.REVISION, 10) >= 155 ? Math.PI : 1
   scene.add(new THREE.AmbientLight(0xffffff, 1.5 * k))
   const yellow = new THREE.DirectionalLight(0xffe600, 2.4 * k)
@@ -76,6 +75,8 @@ function build(canvas, host) {
   scene.add(yellow, cyan, pink)
 
   const main = new THREE.Group()
+  // Vertically align cluster up so it aligns with the left headline
+  main.position.y = 1.3
   scene.add(main)
 
   const anisotropy = renderer.capabilities.getMaxAnisotropy()
@@ -101,8 +102,7 @@ function build(canvas, host) {
     return { mesh, rot: spec.rot, baseY: spec.pos[1] }
   })
 
-  // The 32 orbiting voxels. They are added to the scene, not the group, so they keep orbiting
-  // while the cluster turns towards the mouse.
+  // The 32 orbiting voxels
   const voxelGeometry = new THREE.BoxGeometry(0.26, 0.26, 0.26)
   const voxelEdges = new THREE.EdgesGeometry(voxelGeometry)
   const voxels = []
@@ -118,7 +118,7 @@ function build(canvas, host) {
       angle: (i / VOXELS) * Math.PI * 2,
       radius: 5.4 + (i % 5) * 0.45,
       speed: 0.006 + (i % 3) * 0.003,
-      yOff: Math.sin(i * 1.2) * 2.8,
+      yOff: Math.sin(i * 1.2) * 2.8 + 1.3,
     })
   }
 
@@ -126,6 +126,11 @@ function build(canvas, host) {
   const eased = { x: 0, y: 0 }
   let yaw = 0
   let boost = 0
+  let dragYaw = 0
+  let dragPitch = 0
+  let isDragging = false
+  let downPos = { x: 0, y: 0 }
+  let lastPos = { x: 0, y: 0 }
   let t = 0
   let last = performance.now()
   let raf = 0
@@ -135,14 +140,14 @@ function build(canvas, host) {
 
   function update(dt) {
     t += dt
-    const frames = dt * 60 // the motion was designed per frame at 60 fps
+    const frames = dt * 60
     const follow = 1 - Math.pow(0.95, frames)
     eased.x += (pointer.x * 0.65 - eased.x) * follow
     eased.y += (pointer.y * 0.65 - eased.y) * follow
     boost *= Math.pow(0.04, dt)
     yaw += dt * (0.2 + boost)
-    main.rotation.y = yaw + eased.x
-    main.rotation.x = Math.sin(t * 0.22) * 0.1 - eased.y
+    main.rotation.y = yaw + dragYaw + eased.x
+    main.rotation.x = Math.sin(t * 0.22) * 0.1 + dragPitch - eased.y
 
     cubes.forEach((c, i) => {
       c.mesh.rotation.x += c.rot[0] * frames
@@ -168,12 +173,14 @@ function build(canvas, host) {
     renderer.render(scene, camera)
     raf = requestAnimationFrame(frame)
   }
+
   function start() {
     if (running || reduceMotion) return
     running = true
     last = performance.now()
     raf = requestAnimationFrame(frame)
   }
+
   function stop() {
     running = false
     if (raf) cancelAnimationFrame(raf)
@@ -185,15 +192,16 @@ function build(canvas, host) {
     const h = Math.max(1, host.clientHeight)
     renderer.setSize(w, h, false)
     camera.aspect = w / h
-    camera.position.set(0, 0, 17.5 / Math.min(1, w / h))
+    camera.position.set(0, 0, 16.5 / Math.min(1, w / h))
+    camera.lookAt(0, 0.6, 0)
     camera.updateProjectionMatrix()
     renderer.render(scene, camera)
   }
 
-  update(0.5) // a pleasing starting pose, also used for the still image with reduced motion
+  update(0.5)
   resize()
 
-  // The first drawing may use a fallback font. Draw the faces again when the real font is ready.
+  // Redraw when web fonts are ready
   document.fonts?.load?.('700 46px "Space Grotesk"')
     .then(() => {
       if (disposed) return
@@ -213,16 +221,52 @@ function build(canvas, host) {
   const onVisibility = () => (document.hidden || !visible ? stop() : start())
   document.addEventListener('visibilitychange', onVisibility)
 
-  const onMove = (e) => {
-    pointer.x = clamp((e.clientX / window.innerWidth) * 2 - 1, -1, 1)
-    pointer.y = clamp(-((e.clientY / window.innerHeight) * 2 - 1), -1, 1)
+  const onWindowMove = (e) => {
+    if (isDragging) {
+      const dx = e.clientX - lastPos.x
+      const dy = e.clientY - lastPos.y
+      lastPos.x = e.clientX
+      lastPos.y = e.clientY
+      dragYaw += dx * 0.012
+      dragPitch = clamp(dragPitch + dy * 0.01, -0.6, 0.6)
+    } else {
+      pointer.x = clamp((e.clientX / window.innerWidth) * 2 - 1, -1, 1)
+      pointer.y = clamp(-((e.clientY / window.innerHeight) * 2 - 1), -1, 1)
+    }
   }
-  const onLeave = () => { pointer.x = 0; pointer.y = 0 }
-  const onDown = () => { boost = Math.min(boost + 2.4, 5) }
+
+  const onPointerDown = (e) => {
+    isDragging = true
+    downPos.x = e.clientX
+    downPos.y = e.clientY
+    lastPos.x = e.clientX
+    lastPos.y = e.clientY
+    try { canvas.setPointerCapture(e.pointerId) } catch (_) {}
+  }
+
+  const onPointerUp = (e) => {
+    if (isDragging) {
+      isDragging = false
+      try { canvas.releasePointerCapture(e.pointerId) } catch (_) {}
+      const moved = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y)
+      if (moved < 6) {
+        boost = Math.min(boost + 2.4, 5)
+      }
+    }
+  }
+
+  const onLeave = () => {
+    if (!isDragging) {
+      pointer.x = 0
+      pointer.y = 0
+    }
+  }
+
   if (!reduceMotion) {
-    window.addEventListener('pointermove', onMove, { passive: true })
+    window.addEventListener('pointermove', onWindowMove, { passive: true })
+    window.addEventListener('pointerup', onPointerUp, { passive: true })
     document.documentElement.addEventListener('pointerleave', onLeave)
-    canvas.addEventListener('pointerdown', onDown)
+    canvas.addEventListener('pointerdown', onPointerDown)
   }
 
   return () => {
@@ -231,9 +275,10 @@ function build(canvas, host) {
     observer.disconnect()
     io.disconnect()
     document.removeEventListener('visibilitychange', onVisibility)
-    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointermove', onWindowMove)
+    window.removeEventListener('pointerup', onPointerUp)
     document.documentElement.removeEventListener('pointerleave', onLeave)
-    canvas.removeEventListener('pointerdown', onDown)
+    canvas.removeEventListener('pointerdown', onPointerDown)
     scene.traverse((obj) => {
       obj.geometry?.dispose()
       const mat = obj.material
@@ -262,11 +307,12 @@ export default function HeroScene() {
 
   if (failed) return <SceneFallback />
   return (
-    <div ref={hostRef} style={{ position: 'absolute', inset: 0 }}>
+    <div ref={hostRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
       <canvas
         ref={canvasRef}
         role="img"
-        aria-label="Interactive 3D illustration: eighteen cubes showing programming languages and tools float in a cluster with small blocks orbiting around them. The cluster turns towards the mouse."
+        style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
+        aria-label="Interactive 3D illustration: eighteen cubes showing programming languages and tools float in a cluster with small blocks orbiting around them. Drag to rotate, click to spin."
       />
     </div>
   )

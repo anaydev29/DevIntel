@@ -3,6 +3,7 @@ import { loadBlogs, loadNews, loadRepos } from '../lib/api'
 import { compact, timeAgo } from '../lib/format'
 import { useAsync } from '../lib/useAsync'
 import Page from './Page'
+import { DiscussToggle } from './DiscussionPanel'
 
 function Status({ state, empty, command }) {
   if (state.loading) return <p className="di-empty">Loading...</p>
@@ -20,7 +21,7 @@ const hostOf = (url) => {
 export function NewsPage() {
   const state = useAsync(loadNews, [])
   return (
-    <Page kicker="Page 04" title="News" intro="What is on the Hacker News front page right now, collected once a day.">
+    <Page kicker="Page 05" title="News" intro="What is on the Hacker News front page right now, collected once a day.">
       <Status state={state} empty="No news yet." command="python run_pipeline.py --source hn_frontpage" />
       {state.data?.length > 0 && (
         <ol className="di-news">
@@ -40,6 +41,19 @@ export function NewsPage() {
                       <a href={a.discussion_url} target="_blank" rel="noopener noreferrer" className="di-chip bg-sun" style={{ color: '#000' }}>HN thread</a>
                     )}
                   </p>
+                  <DiscussToggle
+                    kind="article"
+                    refKey={String(a.id)}
+                    initialCount={0}
+                    extra={
+                      <a
+                        href={`#/topics/new?article=${encodeURIComponent(a.id)}&about=${encodeURIComponent(a.title)}`}
+                        className="press border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-bold hover:bg-sun"
+                      >
+                        Start a topic
+                      </a>
+                    }
+                  />
                 </div>
                 <div className="di-points"><b>{compact.format(a.score)}</b><span>points</span></div>
               </li>
@@ -55,7 +69,7 @@ export function BlogsPage({ technologies }) {
   const [tech, setTech] = useState('')
   const state = useAsync(() => loadBlogs(tech), [tech])
   return (
-    <Page kicker="Page 05" title="Blogs" intro="The most popular Dev.to articles from the last two weeks.">
+    <Page kicker="Page 06" title="Blogs" intro="The most popular Dev.to articles from the last two weeks.">
       <div className="di-controls__row" style={{ marginBottom: 22 }}>
         <label htmlFor="di-blog-tech" style={{ fontWeight: 700 }}>Technology</label>
         <select id="di-blog-tech" className="di-select" value={tech} onChange={(e) => setTech(e.target.value)}>
@@ -80,6 +94,19 @@ export function BlogsPage({ technologies }) {
                   <span className="di-chip bg-mint">{compact.format(a.score)} reactions</span>
                   <span className="di-chip">{compact.format(a.comments)} comments</span>
                 </div>
+                <DiscussToggle
+                  kind="article"
+                  refKey={String(a.id)}
+                  initialCount={0}
+                  extra={
+                    <a
+                      href={`#/topics/new?article=${encodeURIComponent(a.id)}&about=${encodeURIComponent(a.title)}`}
+                      className="press border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-bold hover:bg-sun"
+                    >
+                      Start a topic
+                    </a>
+                  }
+                />
               </article>
             </li>
           ))}
@@ -100,7 +127,7 @@ export function ReposPage() {
   const languages = useMemo(() => [...new Set((state.data ?? []).map((r) => r.language).filter(Boolean))].sort(), [state.data])
   const shown = (state.data ?? []).filter((r) => lang === 'all' || r.language === lang)
   return (
-    <Page kicker="Page 06" title="Trending repos" intro="The most-starred GitHub repositories created in the last 7 days. GitHub has no official trending list, so this is the closest honest approximation.">
+    <Page kicker="Page 07" title="Trending repos" intro="The most-starred GitHub repositories created in the last 7 days. GitHub has no official trending list, so this is the closest honest approximation.">
       {languages.length > 0 && (
         <div className="di-filter" role="group" aria-label="Filter by language">
           {['all', ...languages].map((l) => (
@@ -128,6 +155,19 @@ export function ReposPage() {
                     )}
                     {r.created_at && <span className="di-chip">created {timeAgo(r.created_at)}</span>}
                   </div>
+                  <DiscussToggle
+                    kind="repo"
+                    refKey={r.full_name}
+                    initialCount={0}
+                    extra={
+                      <a
+                        href={`#/topics/new?about=${encodeURIComponent(r.full_name)}`}
+                        className="press border-2 border-ink bg-white px-2.5 py-0.5 text-xs font-bold hover:bg-sun"
+                      >
+                        Start a topic
+                      </a>
+                    }
+                  />
                 </div>
               </article>
             </li>
