@@ -1,7 +1,16 @@
-import { Component, lazy, Suspense } from 'react'
+import { Component, lazy, Suspense, useEffect, useState } from 'react'
 import { Link } from '../lib/router'
 import { growthText } from '../lib/format'
 import SceneFallback from './SceneFallback'
+import WeightCustomizer from './WeightCustomizer'
+import {
+  DEFAULT_WEIGHTS,
+  SIGNALS,
+  loadStoredWeights,
+  onWeightsChange,
+  sharesDiffer,
+  storeWeights,
+} from '../lib/score'
 
 // three.js is large, so the scene is loaded in the background and the page appears first
 const HeroScene = lazy(() => import('./HeroScene'))
@@ -58,6 +67,22 @@ function MiniRow({ rank, tech, onSelect }) {
 }
 
 export default function Home({ data, onSelect }) {
+  const [customizing, setCustomizing] = useState(false)
+  const [weights, setWeights] = useState(() => loadStoredWeights() ?? { ...DEFAULT_WEIGHTS })
+
+  useEffect(() => {
+    return onWeightsChange((next) => {
+      setWeights(next ? { ...next } : { ...DEFAULT_WEIGHTS })
+    })
+  }, [])
+
+  const isCustom = sharesDiffer(weights, DEFAULT_WEIGHTS)
+  const metricKeys = Object.keys(SIGNALS)
+  const totalWeight = metricKeys.reduce((sum, m) => sum + (weights[m] ?? 0), 0)
+  const shares = Object.fromEntries(
+    metricKeys.map((m) => [m, totalWeight > 0 ? Math.round((100 * (weights[m] ?? 0)) / totalWeight) : 0]),
+  )
+
   const items = data ? [...data.items].sort((a, b) => (b.devintel_score ?? 0) - (a.devintel_score ?? 0)) : []
   const emerging = data?.emerging ?? []
   const top = items.slice(0, 5)
@@ -158,20 +183,99 @@ export default function Home({ data, onSelect }) {
       </section>
 
       <section className="di-wrap di-section" aria-labelledby="di-weights-title">
-        <div className="di-section__head">
-          <h2 id="di-weights-title" className="di-h2">Transparent scoring</h2>
-          <p className="di-sub">Seven signals from four independent developer platforms. No black boxes.</p>
+        <div className="di-section__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
+          <div>
+            <h2 id="di-weights-title" className="di-h2">Transparent scoring</h2>
+            <p className="di-sub">Eight signals from four independent developer platforms. No black boxes.</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {isCustom && (
+              <span className="di-chip bg-hot" style={{ fontWeight: 700 }}>⚡ Custom weights active</span>
+            )}
+            <button
+              type="button"
+              className={`di-btn di-btn--sm ${isCustom ? 'di-btn--lime' : ''}`}
+              onClick={() => setCustomizing((c) => !c)}
+              aria-expanded={customizing}
+            >
+              {customizing ? 'Close weight sliders' : isCustom ? 'Edit custom weights' : 'Customize signal weights'}
+            </button>
+            {isCustom && (
+              <button
+                type="button"
+                className="di-btn di-btn--sm"
+                onClick={() => storeWeights(null)}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
-        <div className="di-wbar" role="img" aria-label={`Score weights: ${WEIGHTS.map(([n, w]) => `${n} ${w} percent`).join(', ')}`}>
-          {WEIGHTS.map(([name, w, color]) => (
-            <div key={name} className={`di-wseg ${color}`} style={{ flexBasis: `${w}%` }}>{w}%</div>
-          ))}
+
+        {/* Dynamic score weights bar */}
+        <div
+          className="di-wbar"
+          role="img"
+          aria-label={`Score weights: ${metricKeys.map((m) => `${SIGNALS[m].name} ${shares[m]} percent`).join(', ')}`}
+        >
+          {metricKeys.map((m) => {
+            const pct = shares[m]
+            if (pct <= 0) return null
+            const sig = SIGNALS[m]
+            return (
+              <div
+                key={m}
+                className={`di-wseg ${sig.color}`}
+                style={{ flexBasis: `${pct}%`, flexGrow: pct }}
+                title={`${sig.name}: ${pct}%`}
+              >
+                {pct >= 6 ? `${pct}%` : ''}
+              </div>
+            )
+          })}
         </div>
-        <ul className="di-legend">
-          {WEIGHTS.map(([name, w, color]) => (
-            <li key={name}><span className={`di-swatch ${color}`} />{name}</li>
-          ))}
-        </ul>
+
+        {customizing ? (
+          <WeightCustomizer
+            showBar={false}
+            onClose={() => setCustomizing(false)}
+            extraAction={
+              <Link to="/rankings" className="di-btn di-btn--sm di-btn--lime">
+                View rankings with your weights &rarr;
+              </Link>
+            }
+          />
+        ) : (
+          <>
+            <ul className="di-legend">
+              {metricKeys.map((m) => {
+                const pct = shares[m]
+                const sig = SIGNALS[m]
+                return (
+                  <li key={m} style={{ opacity: pct === 0 ? 0.45 : 1 }}>
+                    <span className={`di-swatch ${sig.color}`} />
+                    <span>{sig.name}</span>
+                    <b style={{ marginLeft: 4, fontFamily: 'var(--di-display)' }}>({pct}%)</b>
+                  </li>
+                )
+              })}
+            </ul>
+            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="di-btn di-btn--sm"
+                onClick={() => setCustomizing(true)}
+              >
+                Customize weights with sliders &rarr;
+              </button>
+              {isCustom && (
+                <Link to="/rankings" className="di-btn di-btn--sm di-btn--lime">
+                  See rankings with your weights &rarr;
+                </Link>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
       <section className="di-wrap di-section" aria-labelledby="di-explore-title">

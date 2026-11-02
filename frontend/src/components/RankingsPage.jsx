@@ -1,6 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { categoryName, growthText } from '../lib/format'
+import { loadBreakdown } from '../lib/api'
+import {
+  DEFAULT_WEIGHTS,
+  loadStoredWeights,
+  onWeightsChange,
+  scoreFor,
+  sharesDiffer,
+  storeWeights,
+} from '../lib/score'
 import Page from './Page'
+import WeightCustomizer from './WeightCustomizer'
 
 const PAGE_SIZE = 10
 
@@ -55,19 +65,53 @@ export default function RankingsPage({ data, onSelect }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('score')
   const [page, setPage] = useState(1)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [breakdown, setBreakdown] = useState(null)
+  const [weights, setWeights] = useState(() => loadStoredWeights())
+
+  useEffect(() => {
+    return onWeightsChange((next) => {
+      setWeights(next)
+    })
+  }, [])
+
+  useEffect(() => {
+    if ((panelOpen || weights) && !breakdown) {
+      loadBreakdown().then(setBreakdown).catch(() => {})
+    }
+  }, [panelOpen, weights, breakdown])
+
+  const isCustom = weights && sharesDiffer(weights, DEFAULT_WEIGHTS)
+
+  const customScores = useMemo(() => {
+    if (!isCustom || !breakdown) return null
+    return Object.fromEntries(
+      breakdown.technologies.map((t) => [t.slug, scoreFor(t.components, weights)]),
+    )
+  }, [isCustom, breakdown, weights])
+
+  const itemsWithScores = useMemo(() => {
+    const raw = data?.items ?? []
+    if (!customScores) return raw
+    return raw.map((t) => ({
+      ...t,
+      devintel_score: customScores[t.slug] ?? t.devintel_score,
+      is_custom_score: customScores[t.slug] != null,
+    }))
+  }, [data, customScores])
 
   // The rank always means "position by score", whatever the list is sorted by
   const rankOf = useMemo(() => {
-    const byScore = [...(data?.items ?? [])].sort(SORTS.score[1])
+    const byScore = [...itemsWithScores].sort(SORTS.score[1])
     return new Map(byScore.map((t, i) => [t.slug, i + 1]))
-  }, [data])
+  }, [itemsWithScores])
 
   const shown = useMemo(
     () =>
-      (data?.items ?? [])
+      itemsWithScores
         .filter((t) => (category === 'all' || t.category === category) && t.name.toLowerCase().includes(query.trim().toLowerCase()))
         .sort(SORTS[sort][1]),
-    [data, category, query, sort],
+    [itemsWithScores, category, query, sort],
   )
 
   const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE))
@@ -101,8 +145,33 @@ export default function RankingsPage({ data, onSelect }) {
               <select id="di-sort" className="di-select" value={sort} onChange={(e) => change(setSort)(e.target.value)}>
                 {Object.entries(SORTS).map(([key, [label]]) => <option key={key} value={key}>{label}</option>)}
               </select>
+              <button
+                type="button"
+                className={`di-btn di-btn--sm ${isCustom ? 'di-btn--lime' : ''}`}
+                onClick={() => setPanelOpen(!panelOpen)}
+                aria-expanded={panelOpen}
+                style={{ marginLeft: 'auto' }}
+              >
+                ⚙️ {panelOpen ? 'Close weight sliders' : isCustom ? 'Custom weights active' : 'Customize weights'}
+              </button>
             </div>
           </div>
+
+          {panelOpen && (
+            <div style={{ marginBottom: 20 }}>
+              <WeightCustomizer showBar={true} onClose={() => setPanelOpen(false)} />
+            </div>
+          )}
+
+          {isCustom && !panelOpen && (
+            <div className="di-alert" style={{ background: 'var(--di-sun)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, margin: '14px 0', border: '3px solid #000' }}>
+              <span>⚡ <b>Custom scoring active:</b> Technologies are re-ranked using your custom signal weights.</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="di-btn di-btn--sm" onClick={() => setPanelOpen(true)}>Adjust sliders</button>
+                <button type="button" className="di-btn di-btn--sm" onClick={() => storeWeights(null)}>Reset to defaults</button>
+              </div>
+            </div>
+          )}
 
           <p className="di-count" aria-live="polite">
             {shown.length === 0 ? 'No technologies to show' : `Showing ${(current - 1) * PAGE_SIZE + 1} to ${(current - 1) * PAGE_SIZE + slice.length} of ${shown.length}`}
