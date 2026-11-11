@@ -1,16 +1,7 @@
-import { Component, lazy, Suspense, useEffect, useState } from 'react'
+import { Component, lazy, Suspense } from 'react'
 import { Link } from '../lib/router'
 import { growthText } from '../lib/format'
 import SceneFallback from './SceneFallback'
-import WeightCustomizer from './WeightCustomizer'
-import {
-  DEFAULT_WEIGHTS,
-  SIGNALS,
-  loadStoredWeights,
-  onWeightsChange,
-  sharesDiffer,
-  storeWeights,
-} from '../lib/score'
 
 // three.js is large, so the scene is loaded in the background and the page appears first
 const HeroScene = lazy(() => import('./HeroScene'))
@@ -36,10 +27,10 @@ const TILES = [
   ['/rankings', '01', 'Rankings', 'Every technology scored from 0 to 100, with 30-day growth, filters and sorting.', 'bg-sun', 'Open rankings'],
   ['/compare', '02', 'Compare', 'Put two technologies head to head and see which one leads on each signal.', 'bg-sky', 'Start a duel'],
   ['/skills', '03', 'Skill gap', 'Enter your skills or a GitHub username and get ranked advice on what to learn next.', 'bg-mint', 'Find my next skill'],
-  ['/topics', '04', 'Topics', 'Ask questions, share advice, and start discussions about any technology.', 'bg-lime', 'Join discussion'],
-  ['/news', '05', 'News', 'The Hacker News front page, collected every day.', 'bg-white', 'Read the news'],
-  ['/blogs', '06', 'Blogs', 'Popular Dev.to articles from the last two weeks, filterable by technology.', 'bg-lilac', 'Browse articles'],
-  ['/repos', '07', 'Trending repos', 'The most-starred GitHub repositories created in the last 7 days.', 'bg-hot', 'See what is new'],
+  ['/news', '04', 'News', 'The Hacker News front page, collected every day.', 'bg-white', 'Read the news'],
+  ['/blogs', '05', 'Blogs', 'Popular Dev.to articles from the last two weeks, filterable by technology.', 'bg-lilac', 'Browse articles'],
+  ['/repos', '06', 'Trending repos', 'The most-starred GitHub repositories created in the last 7 days.', 'bg-hot', 'See what is new'],
+  ['/hub', '07', 'AI hub', 'Trending models, datasets and spaces on Hugging Face, plus popular Kaggle notebooks and competitions.', 'bg-lime', 'Explore AI'],
 ]
 
 function Stat({ label, value, note }) {
@@ -67,22 +58,6 @@ function MiniRow({ rank, tech, onSelect }) {
 }
 
 export default function Home({ data, onSelect }) {
-  const [customizing, setCustomizing] = useState(false)
-  const [weights, setWeights] = useState(() => loadStoredWeights() ?? { ...DEFAULT_WEIGHTS })
-
-  useEffect(() => {
-    return onWeightsChange((next) => {
-      setWeights(next ? { ...next } : { ...DEFAULT_WEIGHTS })
-    })
-  }, [])
-
-  const isCustom = sharesDiffer(weights, DEFAULT_WEIGHTS)
-  const metricKeys = Object.keys(SIGNALS)
-  const totalWeight = metricKeys.reduce((sum, m) => sum + (weights[m] ?? 0), 0)
-  const shares = Object.fromEntries(
-    metricKeys.map((m) => [m, totalWeight > 0 ? Math.round((100 * (weights[m] ?? 0)) / totalWeight) : 0]),
-  )
-
   const items = data ? [...data.items].sort((a, b) => (b.devintel_score ?? 0) - (a.devintel_score ?? 0)) : []
   const emerging = data?.emerging ?? []
   const top = items.slice(0, 5)
@@ -100,14 +75,14 @@ export default function Home({ data, onSelect }) {
             <span className="di-mark di-mark--white">in real time.</span>
           </h1>
           <p className="di-lead">
-            DevIntel reads GitHub, Stack Overflow, Hacker News and Dev.to every day and turns them into one transparent 0 to 100 score, plus a 30-day growth signal that shows what is rising.
+            DevIntel reads GitHub, Stack Overflow, Hacker News, Dev.to, Hugging Face and Kaggle every day and turns them into one transparent 0 to 100 score, plus a 30-day growth signal that shows what is rising.
           </p>
           <div className="di-cta-row">
             <Link to="/rankings" className="di-btn di-btn--lime">See the rankings &rarr;</Link>
             <Link to="/skills" className="di-btn">Find my next skill</Link>
           </div>
           <div className="di-stats">
-            <Stat label="Technologies tracked" value={data ? items.length : '...'} note="across 7 daily collectors" />
+            <Stat label="Technologies tracked" value={data ? items.length : '...'} note={`from ${new Set((data?.runs ?? []).map((r) => r.source)).size} data sources`} />
             <Stat label="Taking off now" value={data ? emerging.length : '...'} note={emerging.length === 0 && data ? 'needs a few days of history' : 'flagged by 4 strict checks'} />
             <Stat label="Top ranked" value={top[0]?.name ?? '...'} note={top[0] ? `score ${Math.round(top[0].devintel_score ?? 0)} of 100` : undefined} />
           </div>
@@ -128,7 +103,7 @@ export default function Home({ data, onSelect }) {
               </div>
             )}
           </div>
-          <p className="di-scene__caption"><span className="di-sticker bg-lime">Drag to rotate. Click to spin.</span></p>
+          <p className="di-scene__caption"><span className="di-sticker bg-lime">Move your mouse. Click to spin.</span></p>
         </div>
       </section>
 
@@ -137,7 +112,7 @@ export default function Home({ data, onSelect }) {
           <div className="di-ticker__track">
             {[...tickerItems, ...tickerItems].map((t, i) => (
               <span key={`${t.slug}-${i}`} className="di-ticker__item">
-                {t.name} <b>{Math.round(t.devintel_score ?? 0)}</b>
+                {t.name}<b>{Math.round(t.devintel_score ?? 0)}</b>
                 {t.growth_30d != null && <i>{growthText(t.growth_30d)}</i>}
               </span>
             ))}
@@ -182,100 +157,38 @@ export default function Home({ data, onSelect }) {
         </div>
       </section>
 
-      <section className="di-wrap di-section" aria-labelledby="di-weights-title">
-        <div className="di-section__head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 14 }}>
-          <div>
-            <h2 id="di-weights-title" className="di-h2">Transparent scoring</h2>
-            <p className="di-sub">Eight signals from four independent developer platforms. No black boxes.</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            {isCustom && (
-              <span className="di-chip bg-hot" style={{ fontWeight: 700 }}>⚡ Custom weights active</span>
-            )}
-            <button
-              type="button"
-              className={`di-btn di-btn--sm ${isCustom ? 'di-btn--lime' : ''}`}
-              onClick={() => setCustomizing((c) => !c)}
-              aria-expanded={customizing}
-            >
-              {customizing ? 'Close weight sliders' : isCustom ? 'Edit custom weights' : 'Customize signal weights'}
-            </button>
-            {isCustom && (
-              <button
-                type="button"
-                className="di-btn di-btn--sm"
-                onClick={() => storeWeights(null)}
-              >
-                Reset
-              </button>
-            )}
-          </div>
+      <section className="di-wrap di-section" aria-labelledby="di-how-title">
+        <div className="di-section__head">
+          <h2 id="di-how-title" className="di-h2">How a score is made</h2>
+          <p className="di-sub">No black box: three steps, all documented in the open-source code.</p>
         </div>
-
-        {/* Dynamic score weights bar */}
-        <div
-          className="di-wbar"
-          role="img"
-          aria-label={`Score weights: ${metricKeys.map((m) => `${SIGNALS[m].name} ${shares[m]} percent`).join(', ')}`}
-        >
-          {metricKeys.map((m) => {
-            const pct = shares[m]
-            if (pct <= 0) return null
-            const sig = SIGNALS[m]
-            return (
-              <div
-                key={m}
-                className={`di-wseg ${sig.color}`}
-                style={{ flexBasis: `${pct}%`, flexGrow: pct }}
-                title={`${sig.name}: ${pct}%`}
-              >
-                {pct >= 6 ? `${pct}%` : ''}
-              </div>
-            )
-          })}
+        <div className="di-steps">
+          <article className="di-card di-step">
+            <span className="di-step__num">1</span>
+            <h3>Collect</h3>
+            <p>Collectors run every day: GitHub, Stack Overflow, Hacker News (stories, front page and job posts), Dev.to, trending repositories, Hugging Face and Kaggle. Each result is saved as a daily snapshot.</p>
+          </article>
+          <article className="di-card di-step">
+            <span className="di-step__num">2</span>
+            <h3>Score</h3>
+            <p>Every signal becomes a percentile rank, so Python&apos;s huge numbers do not flatten smaller tools. The ranks are combined with fixed weights into a 0 to 100 score.</p>
+          </article>
+          <article className="di-card di-step">
+            <span className="di-step__num">3</span>
+            <h3>Flag</h3>
+            <p>A technology is &quot;Taking off&quot; only if its score is at least 20, 30-day growth is 15% or more, at least two of three sources agree, and it is in the top 20% by growth.</p>
+          </article>
         </div>
-
-        {customizing ? (
-          <WeightCustomizer
-            showBar={false}
-            onClose={() => setCustomizing(false)}
-            extraAction={
-              <Link to="/rankings" className="di-btn di-btn--sm di-btn--lime">
-                View rankings with your weights &rarr;
-              </Link>
-            }
-          />
-        ) : (
-          <>
-            <ul className="di-legend">
-              {metricKeys.map((m) => {
-                const pct = shares[m]
-                const sig = SIGNALS[m]
-                return (
-                  <li key={m} style={{ opacity: pct === 0 ? 0.45 : 1 }}>
-                    <span className={`di-swatch ${sig.color}`} />
-                    <span>{sig.name}</span>
-                    <b style={{ marginLeft: 4, fontFamily: 'var(--di-display)' }}>({pct}%)</b>
-                  </li>
-                )
-              })}
-            </ul>
-            <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="di-btn di-btn--sm"
-                onClick={() => setCustomizing(true)}
-              >
-                Customize weights with sliders &rarr;
-              </button>
-              {isCustom && (
-                <Link to="/rankings" className="di-btn di-btn--sm di-btn--lime">
-                  See rankings with your weights &rarr;
-                </Link>
-              )}
-            </div>
-          </>
-        )}
+        <div className="di-wbar" role="img" aria-label={`Score weights: ${WEIGHTS.map(([n, w]) => `${n} ${w} percent`).join(', ')}`}>
+          {WEIGHTS.map(([name, w, color]) => (
+            <div key={name} className={`di-wseg ${color}`} style={{ flexBasis: `${w}%` }}>{w}%</div>
+          ))}
+        </div>
+        <ul className="di-legend">
+          {WEIGHTS.map(([name, w, color]) => (
+            <li key={name}><span className={`di-swatch ${color}`} />{name}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="di-wrap di-section" aria-labelledby="di-explore-title">

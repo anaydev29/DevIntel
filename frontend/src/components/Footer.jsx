@@ -17,6 +17,7 @@ export default function Footer() {
             <li><Link to="/skills">Skill gap</Link></li>
             <li><Link to="/news">News</Link></li>
             <li><Link to="/repos">Trending repos</Link></li>
+            <li><Link to="/hub">AI hub</Link></li>
           </ul>
         </div>
         <div>
@@ -30,7 +31,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="di-wrap di-footer__legal">
-        Data comes from public APIs (GitHub, Stack Overflow, Hacker News, Dev.to). Every source has its own bias, so growth is always shown next to size.
+        Data comes from public APIs (GitHub, Stack Overflow, Hacker News, Dev.to, Hugging Face, Kaggle). Every source has its own bias, so growth is always shown next to size.
       </div>
     </footer>
   )

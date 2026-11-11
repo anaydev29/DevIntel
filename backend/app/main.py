@@ -1,6 +1,7 @@
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
+from app.routers import hub
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -44,6 +45,7 @@ app.include_router(me.router)
 app.include_router(discussions.router)
 app.include_router(moderation.router)
 app.include_router(topics.router)
+app.include_router(hub.router)
 
 # Production frontend (React build) served from the same origin as the API, so no CORS setup is needed.
 # During development run `npm run dev` in /frontend instead (it proxies API calls here).

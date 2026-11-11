@@ -1,40 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link } from '../lib/router'
-import { useAuth } from '../lib/auth'
 import AccountBar from './AccountBar'
 
 export const NAV = [
   ['/rankings', 'Rankings'],
   ['/compare', 'Compare'],
   ['/skills', 'Skill gap'],
-  ['/topics', 'Topics'],
   ['/news', 'News'],
   ['/blogs', 'Blogs'],
   ['/repos', 'Trending repos'],
+  ['/hub', 'AI hub'],
 ]
 
 export default function Nav({ path }) {
-  const { user } = useAuth()
-  const isMod = user?.role === 'moderator' || user?.role === 'admin'
   const [open, setOpen] = useState(false)
   useEffect(() => setOpen(false), [path])
-
-  const navItems = isMod ? [...NAV, ['/moderation', 'Moderation']] : NAV
-
-  const links = navItems.map(([to, label]) => {
-    const isCurrent = path === to || (to === '/topics' && (path.startsWith('/topic') || path.startsWith('/topics')))
-    const isModLink = to === '/moderation'
-    return (
-      <Link
-        key={to}
-        to={to}
-        className={`di-navlink ${isModLink ? 'di-navlink--mod' : ''}`}
-        aria-current={isCurrent ? 'page' : undefined}
-      >
-        {label}
-      </Link>
-    )
-  })
+  const links = NAV.map(([to, label]) => (
+    <Link key={to} to={to} className="di-navlink" aria-current={path === to ? 'page' : undefined}>{label}</Link>
+  ))
   return (
     <header className="di-nav">
       <div className="di-wrap di-nav__inner">

@@ -18,12 +18,14 @@ from app.collectors.trending_repos import TrendingReposCollector
 from app.collectors.wikipedia import WikipediaCollector
 from app.database import Base, SessionLocal, engine
 from app.seed import seed
+from app.collectors.huggingface import HuggingFaceCollector
+from app.collectors.kaggle import KaggleCollector
 
 COLLECTORS = {"github": GitHubCollector, "stackoverflow": StackOverflowCollector,
               "hackernews": HackerNewsCollector, "devto": DevToCollector,
               "hn_frontpage": HackerNewsFrontPageCollector, "github_trending": TrendingReposCollector,
               "hn_hiring": HackerNewsHiringCollector, "npm": NpmDownloadsCollector, "pypi": PyPIDownloadsCollector,
-              "wikipedia": WikipediaCollector}
+              "wikipedia": WikipediaCollector, "huggingface" : HuggingFaceCollector, "kaggle" : KaggleCollector}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
