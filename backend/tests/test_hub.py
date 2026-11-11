@@ -42,7 +42,7 @@ def client_for(handler):
 # ----------------------------------------------------------------------- Hugging Face
 MODELS = [
     {"id": "meta/llama", "downloads": 1000, "likes": 50, "trendingScore": 120.5, "pipeline_tag": "text-generation",
-     "library_name": "transformers", "createdAt": "2026-10-01T00:00:00.000Z",
+     "library_name": "custom-lib", "createdAt": "2026-10-01T00:00:00.000Z",
      "tags": ["pytorch", "license:mit", "text-generation", "endpoints_compatible"]},
     {"id": "solo-model", "downloads": 10, "likes": 1, "trendingScore": 5, "tags": []},
 ]
@@ -68,8 +68,8 @@ def test_huggingface_saves_trending_items_and_library_downloads(db):
     assert top.url == "https://huggingface.co/meta/llama" and top.author == "meta"
     assert top.downloads == 1000 and top.likes == 50 and top.trending_score == 120.5
     assert top.tags == ["pytorch", "text-generation"]                    # technical labels are dropped
-    assert top.extra["pipeline_tag"] == "text-generation" and top.extra["library"] == "transformers"
-    assert db.get(Technology, top.technology_id).slug == "pytorch"       # linked through its "pytorch" tag
+    assert top.extra["pipeline_tag"] == "text-generation" and top.extra["library"] == "custom-lib"
+    assert db.get(Technology, top.technology_id).slug == "pytorch"       # linked through its "pytorch" tag (the library name is not in the catalog)
     assert models[1].technology_id is None and models[1].author is None
 
     dataset = db.query(HubItem).filter_by(kind="dataset").one()
