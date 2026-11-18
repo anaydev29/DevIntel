@@ -1,36 +1,23 @@
-# 1. Use Python 3.12 slim image
 FROM python:3.12-slim
 
-# 2. Install Node.js 20 for building the frontend
-RUN apt-get update && apt-get install -y curl
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-RUN apt-get install -y nodejs
+# Node.js 20 (needed to build the React app)
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
 
-# 3. Set working directory
 WORKDIR /app
+COPY . .
 
-# 4. Install Python dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# 1) Python deps
+RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# 5. Build the Frontend
-COPY frontend/package*.json ./frontend/
+# 2) Build React -> creates /app/frontend/dist  (exactly where main.py looks)
 WORKDIR /app/frontend
-RUN npm install
-RUN npm run build
+RUN npm install && npm run build
 
-# 6. Copy Backend Code
-WORKDIR /app
-COPY backend/ ./backend/
-
-# 7. Move the built frontend into the backend directory so FastAPI can serve it
-# (Adjust 'frontend_dist' if your main.py expects a different folder name)
-RUN mkdir -p backend/frontend_dist
-RUN cp -r frontend/dist/* backend/frontend_dist/
-
-# 8. Set environment and start the server
-ENV PYTHONPATH=/app/backend
+# 3) Run the API from backend so `app.main` is importable
 WORKDIR /app/backend
-
-# Render/Railway use the PORT environment variable
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+ENV PYTHONPATH=/app/backend
+EXPOSE 8000
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
