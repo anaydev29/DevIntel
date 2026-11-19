@@ -5,7 +5,7 @@ export function GuidelinesPage() {
   return (
     <article className={`${card} max-w-3xl`}>
       <h2 className="font-display text-3xl leading-tight">Community guidelines</h2>
-      <p className="mt-2">DevIntel is a student project. Discussions are here to help people learn about technology, so please keep them useful and kind.</p>
+      <p className="mt-2">DevIntel is an open developer-intelligence project. Discussions are here to help people learn about technology, so please keep them useful and kind.</p>
       <h3 className={h}>Do</h3>
       <ul className="list-disc pl-5">
         <li>Be respectful, even when you disagree. Argue with ideas, not people.</li>
@@ -35,7 +35,7 @@ export function PrivacyPage() {
   return (
     <article className={`${card} max-w-3xl`}>
       <h2 className="font-display text-3xl leading-tight">Privacy</h2>
-      <p className="mt-2">DevIntel is a student project. This page explains in plain words what it keeps. It is not legal advice.</p>
+      <p className="mt-2">DevIntel is an open developer-intelligence project.This page explains in plain words what it keeps. It is not legal advice.</p>
       <h3 className={h}>What we store, only if you sign in</h3>
       <ul className="list-disc pl-5">
         <li>From Google: your Google account ID, email address, name and profile picture link. We never see your Google password.</li>

@@ -7,7 +7,6 @@ export default function Footer() {
         <div>
           <span className="di-logo">DevIntel</span>
           <p>A developer intelligence platform. It turns daily public data into a transparent score, so choosing what to learn is based on evidence.</p>
-          <p><span className="di-chip bg-sun" style={{ color: '#000' }}>UN SDG 9: Industry, Innovation and Infrastructure</span></p>
         </div>
         <div>
           <h2>Explore</h2>
