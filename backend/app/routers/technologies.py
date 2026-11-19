@@ -1,11 +1,12 @@
 from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.cache import cached
 from app.database import get_db
+from app.limiter import limiter
 from app.models import Article, MetricSnapshot, Repository, Source, TechScore, Technology
 from app.normalize import resolve_technology
 from app.schemas import (HistoryOut, LearnArticle, MetricPoint, SeriesPoint, RelatedTech, RepoLite, TechnologyDetail, TechnologyOut,
@@ -16,8 +17,9 @@ router = APIRouter(prefix="/technologies", tags=["technologies"])
 
 
 @router.get("", response_model=list[TechnologyOut])
+@limiter.limit("30/minute")
 @cached()
-def list_technologies(q: str | None = None, category: str | None = None,
+def list_technologies(request: Request, q: str | None = None, category: str | None = None,
                       limit: int = Query(50, le=200), offset: int = 0,
                       db: Session = Depends(get_db)):
     stmt = select(Technology).order_by(Technology.name)
@@ -29,8 +31,9 @@ def list_technologies(q: str | None = None, category: str | None = None,
 
 
 @router.get("/{name}", response_model=TechnologyDetail)
+@limiter.limit("30/minute")
 @cached()
-def get_technology(name: str, db: Session = Depends(get_db)):
+def get_technology(request: Request, name: str, db: Session = Depends(get_db)):
     tech = resolve_technology(db, name)  # accepts slug or alias, e.g. "reactjs"
     if not tech:
         raise HTTPException(404, f"Technology '{name}' not found")
@@ -55,8 +58,9 @@ def _detail(db: Session, tech: Technology) -> TechnologyDetail:
 
 
 @router.get("/{name}/metrics", response_model=list[MetricPoint])
+@limiter.limit("30/minute")
 @cached()
-def get_metrics(name: str, metric: str | None = None, days: int = Query(90, le=730),
+def get_metrics(request: Request, name: str, metric: str | None = None, days: int = Query(90, le=730),
                 db: Session = Depends(get_db)):
     tech = resolve_technology(db, name)
     if not tech:
@@ -76,8 +80,9 @@ BEGINNER_TAGS = {"beginners", "tutorial", "learning", "basics", "productivity"}
 
 
 @router.get("/{name}/page", response_model=TechnologyPageOut)
+@limiter.limit("30/minute")
 @cached()
-def technology_page(name: str, db: Session = Depends(get_db)):
+def technology_page(request: Request, name: str, db: Session = Depends(get_db)):
     """Everything for a technology's own page: details, related technologies, learning resources, popular repos."""
     tech = resolve_technology(db, name)
     if not tech:
@@ -104,8 +109,9 @@ def technology_page(name: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{name}/history", response_model=HistoryOut)
+@limiter.limit("30/minute")
 @cached()
-def technology_history(name: str, days: int = Query(90, ge=7, le=365), db: Session = Depends(get_db)):
+def technology_history(request: Request, name: str, days: int = Query(90, ge=7, le=365), db: Session = Depends(get_db)):
     """Daily DevIntel Score and every raw signal over time, for the trend charts."""
     tech = resolve_technology(db, name)
     if not tech:

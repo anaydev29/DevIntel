@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+from app.limiter import limiter
 
 from app.cache import cached
 from app.database import get_db
@@ -29,24 +30,27 @@ def _item(score: TechScore, tech: Technology) -> RankingItem:
 
 
 @router.get("/trending", response_model=list[RankingItem])
+@limiter.limit("30/minute")
 @cached()
-def trending(category: str | None = None, limit: int = Query(20, le=100), db: Session = Depends(get_db)):
+def trending(request: Request, category: str | None = None, limit: int = Query(20, le=100), db: Session = Depends(get_db)):
     """Technologies ranked by DevIntel Score (current popularity and activity)."""
     rows = sorted(_latest_rows(db, category, False), key=lambda r: r[0].devintel_score or 0, reverse=True)
     return [_item(s, t) for s, t in rows[:limit]]
 
 
 @router.get("/emerging", response_model=list[RankingItem])
+@limiter.limit("30/minute")
 @cached()
-def emerging(category: str | None = None, limit: int = Query(20, le=100), db: Session = Depends(get_db)):
+def emerging(request: Request, category: str | None = None, limit: int = Query(20, le=100), db: Session = Depends(get_db)):
     """Technologies flagged as emerging, fastest growth first. Empty until enough history exists."""
     rows = sorted(_latest_rows(db, category, True), key=lambda r: r[0].growth_30d or 0, reverse=True)
     return [_item(s, t) for s, t in rows[:limit]]
 
 
 @router.get("/breakdown", response_model=BreakdownOut)
+@limiter.limit("30/minute")
 @cached()
-def breakdown(db: Session = Depends(get_db)):
+def breakdown(request: Request, db: Session = Depends(get_db)):
     """Every technology's score together with the rank it earned on each signal.
     The dashboard uses it to explain a score and to re-rank with the user's own weights."""
     latest_day = select(func.max(TechScore.computed_on)).scalar_subquery()
@@ -66,8 +70,9 @@ def breakdown(db: Session = Depends(get_db)):
 
 
 @router.get("/backtest", response_model=BacktestOut)
+@limiter.limit("30/minute")
 @cached()
-def backtest(horizon: int = Query(14), db: Session = Depends(get_db)):
+def backtest(request: Request, horizon: int = Query(14), db: Session = Depends(get_db)):
     """Did technologies flagged as "taking off" really keep growing? See app/backtest.py for the method."""
     if horizon not in HORIZONS:
         raise HTTPException(422, f"horizon must be one of {HORIZONS}")
