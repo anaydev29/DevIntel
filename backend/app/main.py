@@ -2,11 +2,9 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
-from app.routers import hub
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -14,10 +12,9 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.database import Base, engine, ensure_indexes, ensure_row_level_security
-from app.limiter import limiter  # <--- NEW
-from app.routers import auth, compare, discussions, feed, me, meta, moderation, topics, rankings, skills, technologies
+from app.limiter import limiter
+from app.routers import auth, compare, discussions, feed, me, meta, moderation, topics, rankings, skills, technologies, hub
 
-# ... [keep your existing lifespan function exactly as it is] ...
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -32,6 +29,7 @@ async def lifespan(app: FastAPI):
         print(f"warning: could not enable row level security: {exc}")
     yield
 
+
 is_production = os.getenv("ENVIRONMENT") == "production"
 
 app = FastAPI(
@@ -44,14 +42,55 @@ app = FastAPI(
     openapi_url=None if is_production else "/openapi.json"
 )
 
-# --- NEW: Rate Limiting Setup ---
+# Rate limiting setup
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-# --------------------------------
 
 app.add_middleware(GZipMiddleware, minimum_size=800)
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret or secrets.token_urlsafe(48),
                    https_only=settings.cookie_secure, same_site="lax", max_age=14 * 24 * 3600)
 
-# ... [keep all your app.include_router lines exactly as they are] ...
-# ... [keep your STATIC_DIR and FrontendFiles code exactly as it is] ...
+app.include_router(meta.router)
+app.include_router(technologies.router)
+app.include_router(rankings.router)
+app.include_router(feed.router)
+app.include_router(compare.router)
+app.include_router(skills.router)
+app.include_router(auth.router)
+app.include_router(me.router)
+app.include_router(discussions.router)
+app.include_router(moderation.router)
+app.include_router(topics.router)
+app.include_router(hub.router)
+
+
+# --- BULLETPROOF STATIC DIR RESOLUTION ---
+# __file__ is /app/backend/app/main.py
+# .parent is /app/backend/app
+# .parent is /app/backend
+# .parent is /app (the repo root)
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+STATIC_DIR = REPO_ROOT / "frontend" / "dist"
+
+# TEMPORARY DEBUG: This will print in your Render logs so we know exactly what's happening
+print(f"--- DEVINTEL DEBUG: REPO_ROOT={REPO_ROOT}")
+print(f"--- DEVINTEL DEBUG: STATIC_DIR={STATIC_DIR}")
+print(f"--- DEVINTEL DEBUG: EXISTS={STATIC_DIR.exists()}")
+if STATIC_DIR.exists():
+    print(f"--- DEVINTEL DEBUG: CONTENTS={list(STATIC_DIR.iterdir())}")
+# -----------------------------------------
+
+if STATIC_DIR.exists():
+    class FrontendFiles(StaticFiles):
+        """Built files in /assets have hashed names, so browsers may keep them for a year; the page itself is always rechecked."""
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            if response.status_code == 200:
+                normalized = path.replace("\\", "/")
+                response.headers["Cache-Control"] = ("public, max-age=31536000, immutable" if normalized.startswith("assets/")
+                                                     else "no-cache")
+            return response
+
+    app.mount("/", FrontendFiles(directory=STATIC_DIR, html=True), name="frontend")
+else:
+    print("--- DEVINTEL WARNING: Frontend dist not found! Serving API only. ---")
