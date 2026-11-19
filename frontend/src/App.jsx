@@ -9,6 +9,7 @@ import Page from './components/Page'
 import Home from './components/Home'
 import RankingsPage from './components/RankingsPage'
 import { BlogsPage, NewsPage, ReposPage } from './components/Feeds'
+import TopicsPage from './components/TopicsPage'
 import HubPage from './components/HubPage'
 import ComparePage from './components/ComparePage'
 import SkillGapPage from './components/SkillGapPage'
@@ -24,6 +25,7 @@ const TITLES = {
   '/blogs': 'Blogs',
   '/repos': 'Trending repos',
   '/hub': 'AI hub',
+  '/topics': 'Topics',
   '/profile': 'My profile',
 }
 
@@ -70,6 +72,9 @@ export default function App() {
     case '/hub':
       page = <HubPage />
       break
+    case '/topics': // <-- ADD THIS BLOCK
+      page = <Page kicker="Community" title="Topics" intro="Join the discussion. Start a new topic or reply to existing ones."><TopicsPage /></Page>
+      break  
     case '/profile':
       page = <Page kicker="Account" title="My profile" intro="Your saved skills, GitHub username and watchlist."><ProfilePage technologies={technologies} onSelect={setSelected} /></Page>
       break

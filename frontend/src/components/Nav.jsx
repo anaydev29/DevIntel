@@ -10,6 +10,7 @@ export const NAV = [
   ['/blogs', 'Blogs'],
   ['/repos', 'Trending repos'],
   ['/hub', 'AI hub'],
+  ['/topics', 'Topics']
 ]
 
 export default function Nav({ path }) {
