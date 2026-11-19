@@ -1,0 +1,5 @@
+.git
+node_modules
+backend/.venv
+backend/devintel.db
+frontend/node_modules
