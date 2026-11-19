@@ -8,5 +8,6 @@ const prefixes = ['/rankings', '/technologies', '/categories', '/pipeline', '/he
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: { sourcemap: false },
   server: { proxy: Object.fromEntries(prefixes.map((p) => [p, API])) },
 })

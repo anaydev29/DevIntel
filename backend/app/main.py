@@ -1,3 +1,4 @@
+import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -28,12 +29,25 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="DevIntel API", version="0.1.0",
-              description="Developer intelligence and tech trend analysis", lifespan=lifespan)
+# --- SECURITY: Disable Swagger UI and ReDoc in production ---
+is_production = os.getenv("ENVIRONMENT") == "production"
+
+app = FastAPI(
+    title="DevIntel API", 
+    version="0.1.0",
+    description="Developer intelligence and tech trend analysis", 
+    lifespan=lifespan,
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json"  # Hides the raw JSON schema too
+)
+# -----------------------------------------------------------
+
 app.add_middleware(GZipMiddleware, minimum_size=800)   # JSON compresses to about a fifth of its size
 # Signed, HttpOnly login cookie. Without SESSION_SECRET a random key is used, so logins reset on every restart.
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret or secrets.token_urlsafe(48),
                    https_only=settings.cookie_secure, same_site="lax", max_age=14 * 24 * 3600)
+
 app.include_router(meta.router)
 app.include_router(technologies.router)
 app.include_router(rankings.router)
