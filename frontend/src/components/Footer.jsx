@@ -25,8 +25,7 @@ export default function Footer() {
           <ul>
             <li><a href="https://github.com/anaydev29/DevIntel" target="_blank" rel="noopener noreferrer">Source code on GitHub</a></li>
             <li><a href="/docs" target="_blank" rel="noopener noreferrer">API documentation</a></li>
-            <li>Built by Anay Shivhare at MITS Gwalior</li>
-            <li>Guide: Prof. Jigyasa Mishra</li>
+            <li>Built by Anay Shivhare</li>
           </ul>
         </div>
       </div>
