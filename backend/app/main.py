@@ -72,12 +72,6 @@ app.include_router(hub.router)
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = REPO_ROOT / "frontend" / "dist"
 
-# TEMPORARY DEBUG: This will print in your Render logs so we know exactly what's happening
-print(f"--- DEVINTEL DEBUG: REPO_ROOT={REPO_ROOT}")
-print(f"--- DEVINTEL DEBUG: STATIC_DIR={STATIC_DIR}")
-print(f"--- DEVINTEL DEBUG: EXISTS={STATIC_DIR.exists()}")
-if STATIC_DIR.exists():
-    print(f"--- DEVINTEL DEBUG: CONTENTS={list(STATIC_DIR.iterdir())}")
 # -----------------------------------------
 
 if STATIC_DIR.exists():
