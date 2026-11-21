@@ -1,47 +1,54 @@
-"""Tiny in-process TTL cache for read-only endpoints.
-
-The data only changes when the daily pipeline runs, so answers can be reused for a couple of minutes.
-This matters most when the database is far away: a cache hit costs zero database round trips.
-Set CACHE_SECONDS=0 to turn it off. Never use it on endpoints that depend on who is signed in."""
-import threading
 import time
+import inspect
 from functools import wraps
 
-from sqlalchemy.orm import Session
+# Global cache store: key -> (expiry_time, value)
+_store: dict = {}
 
-from app.config import settings
 
-_stores: list[dict] = []
+def clear_caches():
+    """Empty the in-memory cache. Used by the test suite to start each test clean."""
+    _store.clear()
 
 
 def cached(ttl: float | None = None):
-    def decorate(fn):
-        store: dict = {}
-        lock = threading.Lock()
-        _stores.append(store)
+    """Serve a function's result from an in-memory cache for `ttl` seconds.
+    The cache key is built from the function name + its *real* arguments,
+    but middleware/dependency args (request, db) are EXCLUDED so the key
+    stays identical across calls (this is what makes the repeat request free)."""
+    SKIP = {"request", "db"}  # never part of the cache key
 
-        @wraps(fn)  # keeps the original signature so FastAPI still sees the Depends() parameters
+    def decorator(func):
+        sig = inspect.signature(func)
+
+        @wraps(func)
         def wrapper(*args, **kwargs):
-            seconds = 0 if settings.cache_seconds <= 0 else (ttl or settings.cache_seconds)
-            if seconds <= 0:
-                return fn(*args, **kwargs)
-            key = (tuple(a for a in args if not isinstance(a, Session)),
-                   tuple(sorted((k, v) for k, v in kwargs.items() if not isinstance(v, Session))))
-            now = time.monotonic()
-            with lock:
-                hit = store.get(key)
-                if hit and hit[0] > now:
-                    return hit[1]
-            value = fn(*args, **kwargs)
-            with lock:
-                if len(store) > 500:
-                    store.clear()
-                store[key] = (now + seconds, value)
-            return value
+            from app.config import settings
+            seconds = ttl if ttl is not None else settings.cache_seconds
+            if not seconds:
+                return func(*args, **kwargs)
+
+            # Build a key from only the non-skipped, hashable params
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            key_parts = [func.__qualname__]
+            for name, value in bound.arguments.items():
+                if name in SKIP:
+                    continue
+                try:
+                    hash(value)
+                    key_parts.append((name, value))
+                except TypeError:
+                    pass  # skip unhashable objects (Session, Request, etc.)
+
+            key = repr(key_parts)
+            now = time.time()
+            hit = _store.get(key)
+            if hit and hit[0] > now:
+                return hit[1]
+
+            result = func(*args, **kwargs)
+            _store[key] = (now + seconds, result)
+            return result
         return wrapper
-    return decorate
-
-
-def clear_caches() -> None:
-    for store in _stores:
-        store.clear()
+    return decorator
