@@ -10,6 +10,10 @@ import pytest
 import sqlalchemy
 
 from app.config import settings
+from app.main import app
+
+if hasattr(app.state, "limiter"):
+    app.state.limiter.enabled = False
 
 settings.cache_seconds = 0  # tests must see fresh data; the cache has its own tests that switch it on
 
